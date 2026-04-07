@@ -5,7 +5,7 @@ import { useReaderStore } from '../store/readerStore'
 import { mineCard, isAnkiAvailable } from '../lib/ankiConnect'
 
 export function IntensiveControls() {
-  const { isPlaying, intensiveMode, activeSentence } = useReaderStore()
+  const { isPlaying, intensiveMode, activeSentence, ankiDeck } = useReaderStore()
   const [mineState, setMineState] = useState<'idle' | 'success' | 'error'>('idle')
 
   // Only show when paused in intensive mode
@@ -37,6 +37,7 @@ export function IntensiveControls() {
         meanings: [],
         sentence: activeSentence.text,
         jlpt: null,
+        deck: ankiDeck,
       })
       setMineState('success')
       setTimeout(() => setMineState('idle'), 2000)

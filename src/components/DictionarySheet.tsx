@@ -1,15 +1,16 @@
-import { Volume2, Plus, Sparkles, Loader2, Check } from 'lucide-react'
+import { Volume2, Plus, Sparkles, Loader2, Check, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import { useReaderStore } from '../store/readerStore'
 import type { DictEntry, KanjiBreakdown } from '../lib/dictTypes'
 import { mineCard, isAnkiAvailable } from '../lib/ankiConnect'
+import { generateCard } from '../lib/generateCard'
 
 const JLPT_LABEL: Record<number, string> = { 1: 'N1', 2: 'N2', 3: 'N3', 4: 'N4', 5: 'N5' }
 
 export function DictionarySheet() {
-  const { showDictionary, selectedWord, dictEntry, dictLoading, dictStatus, activeSentence, setShowDictionary } =
+  const { showDictionary, selectedWord, dictEntry, dictLoading, dictStatus, activeSentence, ankiDeck, claudeApiKey, setShowDictionary } =
     useReaderStore()
-  const [ankiState, setAnkiState] = useState<'idle' | 'success' | 'error'>('idle')
+  const [ankiState, setAnkiState] = useState<'idle' | 'generating' | 'success' | 'error'>('idle')
 
   const handleAnki = async () => {
     if (!dictEntry) return
@@ -20,12 +21,29 @@ export function DictionarySheet() {
       return
     }
     try {
+      let front: string
+      let back: string
+
+      if (claudeApiKey) {
+        setAnkiState('generating')
+        const generated = await generateCard(dictEntry, activeSentence?.text ?? '', claudeApiKey)
+        front = generated.front
+        back = generated.back
+      } else {
+        // Fallback: basic card without AI
+        const reading = dictEntry.readings[0] ?? ''
+        const meanings = dictEntry.senses.flatMap((s) => s.glosses).slice(0, 3).join('; ')
+        front = `<div class="word">${dictEntry.word}</div><div class="reading">${reading}</div>${dictEntry.jlpt ? `<div class="jlpt">N${dictEntry.jlpt}</div>` : ''}`
+        back = `<div class="word">${dictEntry.word}</div><div class="reading">${reading}</div><hr><div class="meaning-text">${meanings}</div>`
+      }
+
       await mineCard({
-        word: dictEntry.word,
-        reading: dictEntry.readings[0] ?? '',
-        meanings: dictEntry.senses.flatMap((s) => s.glosses).slice(0, 3),
+        front,
+        back,
         sentence: activeSentence?.text ?? '',
+        word: dictEntry.word,
         jlpt: dictEntry.jlpt,
+        deck: ankiDeck,
       })
       setAnkiState('success')
       setTimeout(() => setAnkiState('idle'), 2000)
@@ -118,11 +136,13 @@ export function DictionarySheet() {
             >
               {ankiState === 'success' ? (
                 <Check className="w-4 h-4" style={{ color: '#4CAF50' }} />
+              ) : ankiState === 'generating' ? (
+                <Wand2 className="w-4 h-4 animate-pulse" style={{ color: '#C8A96E' }} />
               ) : (
                 <Plus className="w-4 h-4" style={{ color: ankiState === 'error' ? '#ef4444' : '#999' }} />
               )}
-              <span className="text-[13px] font-sans" style={{ color: ankiState === 'success' ? '#4CAF50' : ankiState === 'error' ? '#ef4444' : '#999' }}>
-                {ankiState === 'success' ? 'Added!' : ankiState === 'error' ? 'No Anki' : 'Anki'}
+              <span className="text-[13px] font-sans" style={{ color: ankiState === 'success' ? '#4CAF50' : ankiState === 'generating' ? '#C8A96E' : ankiState === 'error' ? '#ef4444' : '#999' }}>
+                {ankiState === 'success' ? 'Added!' : ankiState === 'generating' ? 'Generating…' : ankiState === 'error' ? 'No Anki' : 'Anki'}
               </span>
             </button>
             <button className="flex-1 flex items-center justify-center gap-2 py-3 active:bg-secondary/50">

@@ -1,5 +1,6 @@
 import { useReaderStore } from '../store/readerStore'
 import { audioPlayer } from '../lib/audioPlayer'
+import { useState } from 'react'
 
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5]
 
@@ -9,17 +10,34 @@ export function SettingsSheet() {
     showFurigana,
     intensiveMode,
     playbackRate,
+    ankiDeck,
+    claudeApiKey,
     setShowSettings,
     setShowFurigana,
     setIntensiveMode,
     setPlaybackRate,
+    setAnkiDeck,
+    setClaudeApiKey,
   } = useReaderStore()
+
+  const [deckInput, setDeckInput] = useState(ankiDeck)
+  const [keyInput, setKeyInput] = useState(claudeApiKey)
 
   if (!showSettings) return null
 
   const handleSpeed = (speed: number) => {
     setPlaybackRate(speed)
     audioPlayer.setPlaybackRate(speed)
+  }
+
+  const handleDeckBlur = () => {
+    const trimmed = deckInput.trim()
+    if (trimmed) setAnkiDeck(trimmed)
+    else setDeckInput(ankiDeck)
+  }
+
+  const handleKeyBlur = () => {
+    setClaudeApiKey(keyInput.trim())
   }
 
   return (
@@ -53,6 +71,41 @@ export function SettingsSheet() {
             value={intensiveMode}
             onChange={setIntensiveMode}
           />
+
+          {/* Anki deck */}
+          <div className="flex flex-col gap-1.5">
+            <p className="font-sans text-[15px] text-foreground">Anki Deck</p>
+            <p className="font-sans text-[12px] text-muted-foreground">Cards go to this deck</p>
+            <input
+              type="text"
+              value={deckInput}
+              onChange={(e) => setDeckInput(e.target.value)}
+              onBlur={handleDeckBlur}
+              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur())}
+              className="w-full rounded-lg px-3 py-2 font-sans text-[14px] text-foreground outline-none"
+              style={{ backgroundColor: '#2A2A2A', border: '1px solid #333' }}
+              placeholder="Deck name"
+            />
+          </div>
+
+          {/* Claude API key */}
+          <div className="flex flex-col gap-1.5">
+            <p className="font-sans text-[15px] text-foreground">Claude API Key</p>
+            <p className="font-sans text-[12px] text-muted-foreground">For AI-generated Anki card backs</p>
+            <input
+              type="password"
+              value={keyInput}
+              onChange={(e) => setKeyInput(e.target.value)}
+              onBlur={handleKeyBlur}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              className="w-full rounded-lg px-3 py-2 font-sans text-[14px] text-foreground outline-none"
+              style={{ backgroundColor: '#2A2A2A', border: '1px solid #333' }}
+              placeholder="sk-ant-..."
+            />
+            {claudeApiKey && (
+              <p className="font-sans text-[11px]" style={{ color: '#4CAF50' }}>✓ Key saved</p>
+            )}
+          </div>
 
           {/* Playback speed */}
           <div className="flex flex-col gap-2">
