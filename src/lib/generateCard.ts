@@ -133,7 +133,9 @@ Output ONLY a JSON object (no markdown, no code fences) with these exact keys:
   "examples": [{"jp": "日本語の例文", "reading": "ひらがな reading", "en": "English translation"}],
   "similar": [{"word": "類語", "reading": "reading", "meaning": "brief meaning"}],
   "opposites": [{"word": "対語", "reading": "reading", "meaning": "brief meaning"}],
-  "interesting": "one interesting cultural/linguistic note, empty string if none"
+  "interesting": "one interesting cultural/linguistic note, empty string if none",
+  "sentence_translation": "natural English translation of the full context sentence, empty string if no sentence provided",
+  "contextual_meaning": "how this specific word is used in THIS sentence — nuance, tone, or meaning that differs from or adds to the dictionary definition. Empty string if no sentence provided or if the dictionary meaning is sufficient."
 }
 
 Provide 3 natural example sentences. Keep similar/opposites to 2-3 items each.`
@@ -232,6 +234,14 @@ function renderBack(entry: DictEntry, reading: string, d: Record<string, unknown
   <div class="interesting">${d.interesting}</div>
 </div>` : ''
 
+  const contextualHtml = (d.sentence_translation || d.contextual_meaning) ? `
+<hr>
+<div class="section">
+  <div class="section-title">🔍 In Context</div>
+  ${d.sentence_translation ? `<div class="ctx-translation">"${d.sentence_translation}"</div>` : ''}
+  ${d.contextual_meaning ? `<div class="ctx-meaning">${d.contextual_meaning}</div>` : ''}
+</div>` : ''
+
   return `
 <div class="word">${entry.word}</div>
 <div class="reading">${reading}</div>
@@ -244,5 +254,6 @@ ${examplesHtml}
 ${similar.length || opposites.length ? '<hr>' : ''}
 ${similarHtml}
 ${oppositesHtml}
-${interestingHtml}`
+${interestingHtml}
+${contextualHtml}`
 }

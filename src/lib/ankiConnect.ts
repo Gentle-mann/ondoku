@@ -71,6 +71,8 @@ async function ensureDeckAndModel(deck: string) {
         .interesting { font-size: 14px; color: #aaa; font-style: italic; }
         .sentence-ctx { font-size: 13px; color: #666; font-style: italic; text-align: left; }
         .sentence-front { font-size: 22px; line-height: 1.8; }
+        .ctx-translation { font-size: 15px; color: #ccc; margin-bottom: 6px; font-style: italic; }
+        .ctx-meaning { font-size: 14px; color: #aaa; border-left: 2px solid #C8A96E; padding-left: 10px; margin-top: 6px; }
       `,
       cardTemplates: [
         {
