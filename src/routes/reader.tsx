@@ -7,17 +7,19 @@ import { YANEURA_ALL, findActiveSentence, type AlignedSentence } from '../lib/al
 import { DictionarySheet } from '../components/DictionarySheet'
 import { AudioBar } from '../components/AudioBar'
 import { IntensiveControls } from '../components/IntensiveControls'
+import { SettingsSheet } from '../components/SettingsSheet'
 import { preloadDict, lookupLongest, onDictStatus } from '../lib/dictService'
 
+const AUDIO_BASE = 'https://github.com/Gentle-mann/ondoku/releases/download/v1.0'
 const EPISODES = [
-  '/audio/yanerura_N1_2_ep01.mp3',
-  '/audio/yanerura_N1_2_ep02.mp3',
-  '/audio/yanerura_N1_2_ep03.mp3',
-  '/audio/yanerura_N1_2_ep04.mp3',
-  '/audio/yanerura_N1_2_ep05.mp3',
-  '/audio/yanerura_N1_2_ep06.mp3',
-  '/audio/yanerura_N1_2_ep07.mp3',
-  '/audio/yanerura_N1_2_ep08.mp3',
+  `${AUDIO_BASE}/yanerura_N1_2_ep01.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep02.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep03.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep04.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep05.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep06.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep07.mp3`,
+  `${AUDIO_BASE}/yanerura_N1_2_ep08.mp3`,
 ]
 
 // Pre-compute per-episode slices so findActiveSentence only searches within one file.
@@ -36,10 +38,13 @@ export function ReaderPage() {
   const {
     activeSentenceIndex,
     intensiveMode,
+    showFurigana,
     setIsPlaying,
     setCurrentTime,
     setDuration,
     setActiveSentenceIndex,
+    setActiveSentence,
+    setShowSettings,
     setShowDictionary,
     setSelectedWord,
     setDictEntry,
@@ -71,7 +76,12 @@ export function ReaderPage() {
   }, [setDuration])
 
   useEffect(() => {
-    loadEpisode(0)
+    // Restore saved position
+    const savedEp = parseInt(localStorage.getItem('ondoku_ep') ?? '0', 10) || 0
+    const savedTime = parseFloat(localStorage.getItem('ondoku_time') ?? '0') || 0
+    const epIndex = Math.min(savedEp, EPISODES.length - 1)
+    loadEpisode(epIndex)
+    if (savedTime > 0) audioPlayer.seekWhenReady(savedTime)
 
     audioPlayer.setOnTimeUpdate((time) => {
       setCurrentTime(time)
@@ -80,6 +90,13 @@ export function ReaderPage() {
       const localIdx = findActiveSentence(sentences, time, file)
       const globalIdx = localIdx !== -1 ? offset + localIdx : -1
       setActiveSentenceIndex(globalIdx)
+      setActiveSentence(globalIdx >= 0 ? YANEURA_ALL[globalIdx] : null)
+
+      // Save progress every ~5s
+      if (Math.round(time) % 5 === 0) {
+        localStorage.setItem('ondoku_ep', String(currentEpRef.current))
+        localStorage.setItem('ondoku_time', String(Math.floor(time)))
+      }
 
       if (intensiveModeRef.current && localIdx !== -1) {
         const sentence = sentences[localIdx]
@@ -96,6 +113,8 @@ export function ReaderPage() {
       const next = currentEpRef.current + 1
       if (next < EPISODES.length) {
         loadEpisode(next)
+        localStorage.setItem('ondoku_ep', String(next))
+        localStorage.setItem('ondoku_time', '0')
         audioPlayer.play()
       }
     })
@@ -144,7 +163,11 @@ export function ReaderPage() {
           <ChevronLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <span className="font-sans text-sm text-muted-foreground">第1章</span>
-        <button className="p-1 -mr-1 active:opacity-60 transition-opacity" aria-label="Settings">
+        <button
+          className="p-1 -mr-1 active:opacity-60 transition-opacity"
+          onClick={() => setShowSettings(true)}
+          aria-label="Settings"
+        >
           <Settings className="w-5 h-5 text-muted-foreground" />
         </button>
       </header>
@@ -166,6 +189,7 @@ export function ReaderPage() {
               <SentenceParagraph
                 sentence={sentence}
                 isActive={index === activeSentenceIndex}
+                showFurigana={showFurigana}
                 ref={(el) => { sentenceRefs.current[index] = el }}
                 onWordTap={handleWordTap}
                 onSeek={handleSentenceSeek}
@@ -176,6 +200,7 @@ export function ReaderPage() {
       </main>
 
       <IntensiveControls />
+      <SettingsSheet />
       <DictionarySheet />
       <AudioBar />
     </div>
@@ -185,12 +210,13 @@ export function ReaderPage() {
 interface SentenceParagraphProps {
   sentence: AlignedSentence
   isActive: boolean
+  showFurigana: boolean
   onWordTap: (word: string) => void
   onSeek: (sentence: AlignedSentence) => void
 }
 
 const SentenceParagraph = forwardRef<HTMLParagraphElement, SentenceParagraphProps>(
-  ({ sentence, isActive, onWordTap, onSeek }, ref) => {
+  ({ sentence, isActive, showFurigana, onWordTap, onSeek }, ref) => {
     const opacity = isActive ? 1.0 : 0.35
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const didLongPress = useRef(false)
@@ -248,7 +274,7 @@ const SentenceParagraph = forwardRef<HTMLParagraphElement, SentenceParagraphProp
             }
           }}
         >
-          <SentenceContent sentence={sentence} onWordTap={onWordTap} />
+          <SentenceContent sentence={sentence} showFurigana={showFurigana} onWordTap={onWordTap} />
         </p>
       </div>
     )
@@ -258,12 +284,14 @@ SentenceParagraph.displayName = 'SentenceParagraph'
 
 function SentenceContent({
   sentence,
+  showFurigana,
   onWordTap,
 }: {
   sentence: AlignedSentence
+  showFurigana: boolean
   onWordTap: (word: string) => void
 }) {
-  if (!sentence.furigana || sentence.furigana.length === 0) {
+  if (!showFurigana || !sentence.furigana || sentence.furigana.length === 0) {
     return <TappableText text={sentence.text} onWordTap={onWordTap} />
   }
 

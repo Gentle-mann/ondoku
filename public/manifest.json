@@ -1,0 +1,18 @@
+{
+  "name": "Ondoku",
+  "short_name": "Ondoku",
+  "description": "Japanese audiobook karaoke reader",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

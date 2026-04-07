@@ -1,12 +1,39 @@
-import { Volume2, Plus, Sparkles, Loader2 } from 'lucide-react'
+import { Volume2, Plus, Sparkles, Loader2, Check } from 'lucide-react'
+import { useState } from 'react'
 import { useReaderStore } from '../store/readerStore'
 import type { DictEntry, KanjiBreakdown } from '../lib/dictTypes'
+import { mineCard, isAnkiAvailable } from '../lib/ankiConnect'
 
 const JLPT_LABEL: Record<number, string> = { 1: 'N1', 2: 'N2', 3: 'N3', 4: 'N4', 5: 'N5' }
 
 export function DictionarySheet() {
-  const { showDictionary, selectedWord, dictEntry, dictLoading, dictStatus, setShowDictionary } =
+  const { showDictionary, selectedWord, dictEntry, dictLoading, dictStatus, activeSentence, setShowDictionary } =
     useReaderStore()
+  const [ankiState, setAnkiState] = useState<'idle' | 'success' | 'error'>('idle')
+
+  const handleAnki = async () => {
+    if (!dictEntry) return
+    const available = await isAnkiAvailable()
+    if (!available) {
+      setAnkiState('error')
+      setTimeout(() => setAnkiState('idle'), 3000)
+      return
+    }
+    try {
+      await mineCard({
+        word: dictEntry.word,
+        reading: dictEntry.readings[0] ?? '',
+        meanings: dictEntry.senses.flatMap((s) => s.glosses).slice(0, 3),
+        sentence: activeSentence?.text ?? '',
+        jlpt: dictEntry.jlpt,
+      })
+      setAnkiState('success')
+      setTimeout(() => setAnkiState('idle'), 2000)
+    } catch {
+      setAnkiState('error')
+      setTimeout(() => setAnkiState('idle'), 3000)
+    }
+  }
 
   if (!showDictionary) return null
 
@@ -87,9 +114,16 @@ export function DictionarySheet() {
             <button
               className="flex-1 flex items-center justify-center gap-2 py-3 border-r active:bg-secondary/50"
               style={{ borderColor: '#2A2A2A' }}
+              onClick={handleAnki}
             >
-              <Plus className="w-4 h-4" style={{ color: '#999' }} />
-              <span className="text-[13px] font-sans" style={{ color: '#999' }}>Anki</span>
+              {ankiState === 'success' ? (
+                <Check className="w-4 h-4" style={{ color: '#4CAF50' }} />
+              ) : (
+                <Plus className="w-4 h-4" style={{ color: ankiState === 'error' ? '#ef4444' : '#999' }} />
+              )}
+              <span className="text-[13px] font-sans" style={{ color: ankiState === 'success' ? '#4CAF50' : ankiState === 'error' ? '#ef4444' : '#999' }}>
+                {ankiState === 'success' ? 'Added!' : ankiState === 'error' ? 'No Anki' : 'Anki'}
+              </span>
             </button>
             <button className="flex-1 flex items-center justify-center gap-2 py-3 active:bg-secondary/50">
               <Sparkles className="w-4 h-4" style={{ color: '#999' }} />
