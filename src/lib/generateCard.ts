@@ -159,8 +159,11 @@ Provide 3 natural example sentences. Keep similar/opposites to 2-3 items each.`
 
   let parsed: Record<string, unknown>
   try {
-    parsed = JSON.parse(raw)
+    // Strip markdown code fences if present
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+    parsed = JSON.parse(cleaned)
   } catch {
+    console.error('AI response was:', raw)
     throw new Error('Failed to parse AI response')
   }
 
