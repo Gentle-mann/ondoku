@@ -12,6 +12,8 @@ interface ReaderState {
   playbackRate: number
   ankiDeck: string
   claudeApiKey: string
+  cardType: 'sentence' | 'word'
+  showMinePicker: boolean
   showFurigana: boolean
   showSettings: boolean
   showDictionary: boolean
@@ -29,6 +31,8 @@ interface ReaderState {
   setPlaybackRate: (r: number) => void
   setAnkiDeck: (d: string) => void
   setClaudeApiKey: (k: string) => void
+  setCardType: (t: 'sentence' | 'word') => void
+  setShowMinePicker: (v: boolean) => void
   setShowFurigana: (v: boolean) => void
   setShowSettings: (v: boolean) => void
   setShowDictionary: (v: boolean) => void
@@ -48,6 +52,8 @@ export const useReaderStore = create<ReaderState>((set) => ({
   playbackRate: parseFloat(localStorage.getItem('ondoku_speed') ?? '1.0') || 1.0,
   ankiDeck: localStorage.getItem('ondoku_deck') ?? 'Ondoku',
   claudeApiKey: localStorage.getItem('ondoku_claude_key') ?? '',
+  cardType: (localStorage.getItem('ondoku_card_type') as 'sentence' | 'word') ?? 'sentence',
+  showMinePicker: false,
   showFurigana: localStorage.getItem('ondoku_furigana') !== 'false',
   showSettings: false,
   showDictionary: false,
@@ -77,6 +83,11 @@ export const useReaderStore = create<ReaderState>((set) => ({
     localStorage.setItem('ondoku_claude_key', k)
     set({ claudeApiKey: k })
   },
+  setCardType: (t) => {
+    localStorage.setItem('ondoku_card_type', t)
+    set({ cardType: t })
+  },
+  setShowMinePicker: (v) => set({ showMinePicker: v }),
   setShowFurigana: (v) => {
     localStorage.setItem('ondoku_furigana', String(v))
     set({ showFurigana: v })

@@ -12,12 +12,14 @@ export function SettingsSheet() {
     playbackRate,
     ankiDeck,
     claudeApiKey,
+    cardType,
     setShowSettings,
     setShowFurigana,
     setIntensiveMode,
     setPlaybackRate,
     setAnkiDeck,
     setClaudeApiKey,
+    setCardType,
   } = useReaderStore()
 
   const [deckInput, setDeckInput] = useState(ankiDeck)
@@ -71,6 +73,30 @@ export function SettingsSheet() {
             value={intensiveMode}
             onChange={setIntensiveMode}
           />
+
+          {/* Card type */}
+          <div className="flex flex-col gap-2">
+            <div>
+              <p className="font-sans text-[15px] text-foreground">Card Type</p>
+              <p className="font-sans text-[12px] text-muted-foreground">What goes on the front</p>
+            </div>
+            <div className="flex gap-2">
+              {(['sentence', 'word'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setCardType(t)}
+                  className="flex-1 py-2 rounded-lg font-sans text-[13px] transition-colors active:opacity-70 capitalize"
+                  style={{
+                    backgroundColor: cardType === t ? '#C8A96E' : '#2A2A2A',
+                    color: cardType === t ? '#111' : '#999',
+                    fontWeight: cardType === t ? 600 : 400,
+                  }}
+                >
+                  {t === 'sentence' ? 'Sentence + word' : 'Word only'}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Anki deck */}
           <div className="flex flex-col gap-1.5">

@@ -8,6 +8,7 @@ import { DictionarySheet } from '../components/DictionarySheet'
 import { AudioBar } from '../components/AudioBar'
 import { IntensiveControls } from '../components/IntensiveControls'
 import { SettingsSheet } from '../components/SettingsSheet'
+import { MineWordPicker } from '../components/MineWordPicker'
 import { preloadDict, lookupLongest, onDictStatus } from '../lib/dictService'
 
 const AUDIO_BASE = 'https://github.com/Gentle-mann/ondoku/releases/download/v1.0'
@@ -200,6 +201,7 @@ export function ReaderPage() {
       </main>
 
       <IntensiveControls />
+      <MineWordPicker />
       <SettingsSheet />
       <DictionarySheet />
       <AudioBar />

@@ -70,6 +70,7 @@ async function ensureDeckAndModel(deck: string) {
         .related-word { color: #C8A96E; }
         .interesting { font-size: 14px; color: #aaa; font-style: italic; }
         .sentence-ctx { font-size: 13px; color: #666; font-style: italic; text-align: left; }
+        .sentence-front { font-size: 22px; line-height: 1.8; }
       `,
       cardTemplates: [
         {
