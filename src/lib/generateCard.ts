@@ -8,7 +8,6 @@ export interface GeneratedCard {
 }
 
 function pitchLabel(pattern: string): string {
-  // pattern is like "0", "1", "2" etc. — convert to LH notation
   const map: Record<string, string> = {
     '0': 'heiban (平板)',
     '1': 'atamadaka (頭高)',
@@ -17,6 +16,83 @@ function pitchLabel(pattern: string): string {
     '4': 'nakadaka (中高)',
   }
   return map[pattern] ?? pattern
+}
+
+function formatPos(pos: string): string {
+  return pos
+    .replace("Godan verb with '", '').replace("' ending", ' verb')
+    .replace('Ichidan verb', 'verb (る)')
+    .replace('noun (common) (futsuumeishi)', 'noun')
+    .replace('adjectival nouns or quasi-adjectives (keiyodoshi)', 'na-adj')
+    .replace('adjective (keiyoushi)', 'i-adj')
+    .replace('adverb (fukushi)', 'adverb')
+}
+
+export function buildBasicCard(entry: DictEntry, sentence: string): GeneratedCard {
+  const reading = entry.readings[0] ?? ''
+  const pitch = entry.pitch[0]
+  const pitchStr = pitch
+    ? `【${pitch.pattern}】 ${pitchLabel(pitch.pattern)}`
+    : null
+
+  // Front
+  const front = `
+<div class="word">${entry.word}</div>
+<div class="reading">${reading}</div>
+${pitchStr ? `<div class="pitch">${pitchStr}</div>` : ''}
+${entry.jlpt ? `<div class="jlpt">N${entry.jlpt}</div>` : ''}
+${entry.freqRank ? `<div class="freq">#${entry.freqRank.toLocaleString()}</div>` : ''}`
+
+  // Meanings section
+  const meaningsHtml = entry.senses.slice(0, 4).map((s) => {
+    const pos = s.pos[0] ? `<span class="pos">${formatPos(s.pos[0])}</span>` : ''
+    const glosses = s.glosses.slice(0, 3).map((g, j) => `<span class="gloss">${j + 1}. ${g}</span>`).join('')
+    return `<div class="sense">${pos}${glosses}</div>`
+  }).join('')
+
+  // Kanji breakdown section
+  const kanjiHtml = entry.kanjiBreakdown.length ? `
+<hr>
+<div class="section">
+  <div class="section-title">🧩 Kanji</div>
+  ${entry.kanjiBreakdown.map(k => {
+    const onReading = k.readings_on[0] ?? ''
+    const kunReading = k.readings_kun[0]?.replace(/[.-].*/, '') ?? ''
+    const meaning = k.meanings[0] ?? ''
+    return `<div class="kanji-block">
+      <span class="kanji-char">${k.literal}</span>
+      <span class="kanji-readings">${[onReading, kunReading].filter(Boolean).join(' / ')}</span>
+      <span class="kanji-meaning">${meaning}</span>
+      ${k.jlpt ? `<span class="kanji-jlpt">N${k.jlpt}</span>` : ''}
+    </div>`
+  }).join('')}
+</div>` : ''
+
+  // All readings
+  const altReadings = entry.readings.slice(1, 4)
+  const altReadingsHtml = altReadings.length ? `
+<div class="alt-readings">Alt: ${altReadings.join('、')}</div>` : ''
+
+  // Context sentence
+  const sentenceHtml = sentence ? `
+<hr>
+<div class="sentence-ctx">${sentence.replace(entry.word, `<b style="color:#C8A96E">${entry.word}</b>`)}</div>` : ''
+
+  const back = `
+<div class="word">${entry.word}</div>
+<div class="reading">${reading}</div>
+${pitchStr ? `<div class="pitch">${pitchStr}</div>` : ''}
+${entry.jlpt ? `<div class="jlpt">N${entry.jlpt}</div>` : ''}
+${altReadingsHtml}
+<hr>
+<div class="section">
+  <div class="section-title">💡 Meanings</div>
+  ${meaningsHtml}
+</div>
+${kanjiHtml}
+${sentenceHtml}`
+
+  return { front, back }
 }
 
 export async function generateCard(

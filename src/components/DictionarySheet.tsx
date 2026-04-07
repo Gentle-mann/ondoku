@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useReaderStore } from '../store/readerStore'
 import type { DictEntry, KanjiBreakdown } from '../lib/dictTypes'
 import { mineCard, isAnkiAvailable } from '../lib/ankiConnect'
-import { generateCard } from '../lib/generateCard'
+import { generateCard, buildBasicCard } from '../lib/generateCard'
 
 const JLPT_LABEL: Record<number, string> = { 1: 'N1', 2: 'N2', 3: 'N3', 4: 'N4', 5: 'N5' }
 
@@ -30,11 +30,9 @@ export function DictionarySheet() {
         front = generated.front
         back = generated.back
       } else {
-        // Fallback: basic card without AI
-        const reading = dictEntry.readings[0] ?? ''
-        const meanings = dictEntry.senses.flatMap((s) => s.glosses).slice(0, 3).join('; ')
-        front = `<div class="word">${dictEntry.word}</div><div class="reading">${reading}</div>${dictEntry.jlpt ? `<div class="jlpt">N${dictEntry.jlpt}</div>` : ''}`
-        back = `<div class="word">${dictEntry.word}</div><div class="reading">${reading}</div><hr><div class="meaning-text">${meanings}</div>`
+        const basic = buildBasicCard(dictEntry, activeSentence?.text ?? '')
+        front = basic.front
+        back = basic.back
       }
 
       await mineCard({
