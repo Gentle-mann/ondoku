@@ -31,11 +31,13 @@ export function IntensiveControls() {
       return
     }
     try {
+      const front = `<div class="word">${activeSentence.text}</div>`
+      const back = `<div class="word">${activeSentence.text}</div>`
       await mineCard({
-        word: activeSentence.text,
-        reading: '',
-        meanings: [],
+        front,
+        back,
         sentence: activeSentence.text,
+        word: activeSentence.text,
         jlpt: null,
         deck: ankiDeck,
       })
