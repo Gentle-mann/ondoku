@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #121212;
+  --color-foreground: #F0EDE8;
+  --color-card: #1E1E1E;
+  --color-card-foreground: #F0EDE8;
+  --color-border: #2A2A2A;
+  --color-secondary: #242424;
+  --color-secondary-foreground: #F0EDE8;
+  --color-muted: #1A1A1A;
+  --color-muted-foreground: #888888;
+  --color-accent: #C8A96E;
+  --color-accent-foreground: #121212;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: "Noto Serif JP", "Hiragino Mincho ProN", serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #121212;
+  color: #F0EDE8;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  overscroll-behavior: none;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+}
+
+.font-serif {
+  font-feature-settings: "palt" 1;
+  text-rendering: optimizeLegibility;
+}
+
+ruby rt {
+  font-size: 0.6em;
+  opacity: 0.7;
+  font-family: var(--font-sans);
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
