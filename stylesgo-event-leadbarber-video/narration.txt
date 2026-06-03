@@ -1,0 +1,8 @@
+Here is the lead barber flow for the Live Nation event in the StylesGo Barber app.
+Open the app, tap Requests, then Events. In My events, open the Live Nation event card, and confirm attendance if the app asks.
+Before start time, review venue, parking, and arrival notes. Use Chat in app or Call for anything the event manager needs to know.
+When you are on site, tap I've arrived. If you are delayed, use Running late and choose an ETA so HR and StylesGo ops are notified.
+When the station is set and you are ready for the first attendee, the lead barber taps Start Event.
+During the event, use the participant list as the live queue. Search by name, open the three-dot menu, then Start cut, Mark done, No-show, or Reset.
+At wrap-up, make sure everyone is marked correctly. The lead taps End Event. If anyone is unmarked, the app warns you before closing and recording actual time.
+The simple rhythm is: arrive, start, update every participant, end clean.

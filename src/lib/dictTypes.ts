@@ -4,6 +4,26 @@ export interface KanjiBreakdown {
   readings_on: string[]
   readings_kun: string[]
   jlpt: number | null
+  rtk?: RtkKanjiInfo
+  examples: KanjiExampleWord[]
+}
+
+export interface KanjiExampleWord {
+  word: string
+  readings: string[]
+  meanings: string[]
+  jlpt: number | null
+  freqRank: number | null
+}
+
+export interface RtkKanjiInfo {
+  frame: number
+  keyword: string
+  components: string[]
+  story: string
+  storySource: 'anki' | 'generated'
+  strokeCount: number | null
+  jlpt: string | null
 }
 
 export interface DictSense {

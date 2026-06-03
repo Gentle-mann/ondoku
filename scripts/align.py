@@ -25,6 +25,7 @@ import difflib
 import unicodedata
 from pathlib import Path
 import whisper
+import fugashi
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -78,6 +79,100 @@ def normalize(text: str) -> str:
     return unicodedata.normalize("NFKC", text)
 
 
+_tagger = None
+
+def get_tagger():
+    global _tagger
+    if _tagger is None:
+        _tagger = fugashi.Tagger()
+    return _tagger
+
+
+def segment_sentence(text: str) -> list[str]:
+    """Split a Japanese sentence into morphological words using MeCab."""
+    tagger = get_tagger()
+    words = []
+    for token in tagger(text):
+        words.append(token.surface)
+    return words
+
+
+def build_word_timestamps(
+    sentence_text: str,
+    whisper_tokens: list[dict],
+) -> list[dict]:
+    """
+    Given the original sentence text and the Whisper character-level tokens
+    that cover it, group tokens into real Japanese words (via MeCab) and
+    assign start/end timestamps from the character-level data.
+
+    Returns: [{text: str, start: float, end: float}, ...]
+    """
+    # Build a character → timestamp map from Whisper tokens
+    char_times = []  # [(char, start, end), ...]
+    for tok in whisper_tokens:
+        t = tok.get("text", tok.get("word", "")).strip()
+        if not t:
+            continue
+        # Distribute token's time evenly across its characters
+        n = len(t)
+        dur = (tok["end"] - tok["start"]) / max(n, 1)
+        for i, ch in enumerate(t):
+            char_times.append((ch, tok["start"] + dur * i, tok["start"] + dur * (i + 1)))
+
+    # Segment sentence into words
+    mecab_words = segment_sentence(sentence_text)
+
+    # Map each MeCab word to character timestamps using greedy matching
+    result = []
+    ct_idx = 0
+    for word in mecab_words:
+        word_norm = normalize(word)
+        if not word_norm:
+            continue
+
+        # Find the start of this word in char_times (fuzzy: skip mismatches)
+        best_idx = ct_idx
+        found = False
+        for scan in range(ct_idx, min(ct_idx + len(word_norm) + 20, len(char_times))):
+            # Check if word_norm starts matching at this position
+            match = True
+            for k, ch in enumerate(word_norm):
+                if scan + k >= len(char_times):
+                    match = False
+                    break
+                if normalize(char_times[scan + k][0]) != ch:
+                    match = False
+                    break
+            if match:
+                best_idx = scan
+                found = True
+                break
+
+        if found and best_idx + len(word_norm) <= len(char_times):
+            start_t = char_times[best_idx][1]
+            end_t = char_times[best_idx + len(word_norm) - 1][2]
+            ct_idx = best_idx + len(word_norm)
+        else:
+            # Fallback: estimate from neighbors
+            if result:
+                start_t = result[-1]["end"]
+            elif char_times:
+                start_t = char_times[0][1]
+            else:
+                start_t = 0.0
+            end_t = start_t + 0.1
+            # Don't advance ct_idx — we missed this word
+
+        result.append({
+            "text": word,
+            "start": round(start_t, 3),
+            "end": round(end_t, 3),
+        })
+
+    return result
+
+
 def build_char_index(words: list[dict]) -> tuple[str, list[int]]:
     """
     Concatenate word strings (no spaces) and build a mapping:
@@ -100,10 +195,10 @@ def find_sentence_span(
     sentence: str,
     search_from: int = 0,
     threshold: float = 0.45,
-) -> tuple[float, float, int] | None:
+) -> tuple[float, float, int, int, int] | None:
     """
     Find the best-matching region for `sentence` in `transcript[search_from:]`.
-    Returns (start_sec, end_sec, char_end_pos) or None.
+    Returns (start_sec, end_sec, char_end_pos, word_start_idx, word_end_idx) or None.
 
     Uses SequenceMatcher to handle minor Whisper transcription differences
     (different kanji choices, kana vs kanji, etc.).
@@ -150,7 +245,7 @@ def find_sentence_span(
     start_sec = words[word_start_idx]["start"]
     end_sec = words[word_end_idx]["end"]
 
-    return start_sec, end_sec, abs_end
+    return start_sec, end_sec, abs_end, word_start_idx, word_end_idx
 
 
 # ── Main alignment ────────────────────────────────────────────────────────────
@@ -188,16 +283,21 @@ def align(
                 "text": sentence,
             })
         else:
-            start_sec, end_sec, new_cursor = match
+            start_sec, end_sec, new_cursor, wi_start, wi_end = match
+            # Extract word-level timestamps for this sentence
+            # Group Whisper character tokens into real Japanese words via MeCab
+            raw_tokens = [words[j] for j in range(wi_start, wi_end + 1)]
+            sentence_words = build_word_timestamps(sentence, raw_tokens)
             results.append({
                 "id": sid,
                 "file": audio_filename,
                 "start": start_sec,
                 "end": end_sec,
                 "text": sentence,
+                "words": sentence_words,
             })
             cursor = new_cursor
-            print(f"  [{sid}] {start_sec:.2f}s – {end_sec:.2f}s  {sentence[:40]}", flush=True)
+            print(f"  [{sid}] {start_sec:.2f}s – {end_sec:.2f}s  ({len(sentence_words)} words)  {sentence[:40]}", flush=True)
 
     if failed:
         print(f"\n  {len(failed)} sentence(s) not matched, interpolating from neighbors…", flush=True)

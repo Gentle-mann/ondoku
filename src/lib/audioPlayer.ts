@@ -8,6 +8,8 @@ export interface MediaMetadata {
   artwork?: string  // URL to cover image
 }
 
+export type PauseReason = 'user' | 'intensive' | 'cleanup' | 'preview' | 'media-session' | 'sleep-timer'
+
 class AudioPlayer {
   private audio: HTMLAudioElement
   private onTimeUpdate: ((time: number) => void) | null = null
@@ -15,17 +17,29 @@ class AudioPlayer {
   private onEnded: (() => void) | null = null
   private onDurationChange: ((duration: number) => void) | null = null
   private pendingSeek: number | null = null
+  private pendingPlay = false
+  private rafId: number | null = null
+  private lastEmittedTime = -1
+  private lastIntentionalPauseAt = 0
+  private lastPauseReason: PauseReason | null = null
+  // Set to true by load() so seekWhenReady never tries to seek into a
+  // not-yet-loaded src (some browsers keep readyState >= 1 from cache
+  // across a load() call, causing an immediate seek that silently fails).
+  private justLoaded = false
 
   constructor() {
     this.audio = new Audio()
     this.audio.preload = 'auto'
+    this.audio.playbackRate = parseFloat(localStorage.getItem('ondoku_speed') ?? '1.0') || 1.0
 
     this.audio.addEventListener('timeupdate', () => {
-      this.onTimeUpdate?.(this.audio.currentTime)
+      this.emitTimeUpdate()
       this.updatePositionState()
     })
 
     this.audio.addEventListener('play', () => {
+      this.lastPauseReason = null
+      this.startPrecisionClock()
       this.onPlayStateChange?.(true)
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'playing'
@@ -33,6 +47,8 @@ class AudioPlayer {
     })
 
     this.audio.addEventListener('pause', () => {
+      this.stopPrecisionClock()
+      this.emitTimeUpdate(true)
       this.onPlayStateChange?.(false)
       if ('mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused'
@@ -40,6 +56,8 @@ class AudioPlayer {
     })
 
     this.audio.addEventListener('ended', () => {
+      this.stopPrecisionClock()
+      this.emitTimeUpdate(true)
       this.onPlayStateChange?.(false)
       this.onEnded?.()
       if ('mediaSession' in navigator) {
@@ -48,12 +66,19 @@ class AudioPlayer {
     })
 
     this.audio.addEventListener('loadedmetadata', () => {
+      this.justLoaded = false
       this.updatePositionState()
       this.onDurationChange?.(this.audio.duration)
       if (this.pendingSeek !== null) {
         this.audio.currentTime = this.pendingSeek
         this.pendingSeek = null
+        this.emitTimeUpdate(true)
         this.updatePositionState()
+      }
+      // Play AFTER seek so we start at the right position, not time=0
+      if (this.pendingPlay) {
+        this.pendingPlay = false
+        this.audio.play().catch(console.error)
       }
     })
 
@@ -68,7 +93,7 @@ class AudioPlayer {
     })
 
     navigator.mediaSession.setActionHandler('pause', () => {
-      this.pause()
+      this.pause('media-session')
     })
 
     navigator.mediaSession.setActionHandler('seekbackward', (details) => {
@@ -110,6 +135,33 @@ class AudioPlayer {
     }
   }
 
+  private emitTimeUpdate(force = false) {
+    const time = this.audio.currentTime
+    if (!force && Math.abs(time - this.lastEmittedTime) < 0.012) return
+    this.lastEmittedTime = time
+    this.onTimeUpdate?.(time)
+  }
+
+  private startPrecisionClock() {
+    if (this.rafId !== null) return
+
+    const tick = () => {
+      this.emitTimeUpdate()
+      if (!this.audio.paused && !this.audio.ended) {
+        this.rafId = requestAnimationFrame(tick)
+      } else {
+        this.rafId = null
+      }
+    }
+    this.rafId = requestAnimationFrame(tick)
+  }
+
+  private stopPrecisionClock() {
+    if (this.rafId === null) return
+    cancelAnimationFrame(this.rafId)
+    this.rafId = null
+  }
+
   setMediaMetadata(meta: MediaMetadata) {
     if (!('mediaSession' in navigator)) return
 
@@ -130,8 +182,13 @@ class AudioPlayer {
 
   load(src: string) {
     if (this.audio.src !== src) {
+      this.pendingSeek = null   // discard any seek queued for the old src
+      this.pendingPlay = false
+      this.justLoaded = true
       this.audio.src = src
       this.audio.load()
+      // Reapply stored playback rate — some browsers reset it on load()
+      this.audio.playbackRate = parseFloat(localStorage.getItem('ondoku_speed') ?? '1.0') || 1.0
     }
   }
 
@@ -139,21 +196,41 @@ class AudioPlayer {
     return this.audio.play()
   }
 
-  pause() {
+  pause(reason: PauseReason = 'user') {
+    this.lastIntentionalPauseAt = performance.now()
+    this.lastPauseReason = reason
     this.audio.pause()
   }
 
   seek(time: number) {
     this.audio.currentTime = time
+    this.emitTimeUpdate(true)
     this.updatePositionState()
   }
 
-  /** Seek immediately if metadata is loaded, otherwise queue it for after loadedmetadata. */
+  /**
+   * Seek immediately if this is a same-src seek and metadata is available.
+   * After load() (new src), always queue for loadedmetadata — never seek
+   * into a not-yet-loaded source even if readyState looks ready from cache.
+   */
   seekWhenReady(time: number) {
-    if (this.audio.readyState >= 1) {
+    if (!this.justLoaded && this.audio.readyState >= 1) {
       this.seek(time)
     } else {
       this.pendingSeek = time
+    }
+  }
+
+  /**
+   * Start playing as soon as the current src is ready.
+   * If we're mid-load (justLoaded), delays until after loadedmetadata
+   * so playback starts at the seeked position, not at time=0.
+   */
+  playWhenReady() {
+    if (!this.justLoaded && this.audio.readyState >= 3) {
+      this.audio.play().catch(console.error)
+    } else {
+      this.pendingPlay = true
     }
   }
 
@@ -178,6 +255,18 @@ class AudioPlayer {
     return this.audio.paused
   }
 
+  get ended() {
+    return this.audio.ended
+  }
+
+  wasRecentlyPausedIntentionally(windowMs = 1000) {
+    return performance.now() - this.lastIntentionalPauseAt <= windowMs
+  }
+
+  getLastPauseReason() {
+    return this.lastPauseReason
+  }
+
   setOnTimeUpdate(cb: (time: number) => void) {
     this.onTimeUpdate = cb
   }
@@ -188,6 +277,10 @@ class AudioPlayer {
 
   setOnEnded(cb: () => void) {
     this.onEnded = cb
+  }
+
+  getAudioSrc(): string | null {
+    return this.audio.src || null
   }
 }
 

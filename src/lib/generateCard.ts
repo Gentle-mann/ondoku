@@ -28,6 +28,44 @@ function formatPos(pos: string): string {
     .replace('adverb (fukushi)', 'adverb')
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+export function buildSentenceCard(entry: DictEntry, sentence: string): GeneratedCard {
+  const reading = entry.readings[0] ?? ''
+  const highlighted = sentence
+    ? sentence.replace(entry.word, `<b style="color:#C8A96E">${entry.word}</b>`)
+    : `<span style="color:#C8A96E">${entry.word}</span>`
+
+  const front = `<div class="sentence-front">${highlighted}</div>`
+
+  const meaningsHtml = entry.senses.slice(0, 3).map((s) => {
+    const pos = s.pos[0] ? `<span class="pos">${formatPos(s.pos[0])}</span>` : ''
+    const glosses = s.glosses.slice(0, 3).map((g, j) => `<span class="gloss">${j + 1}. ${g}</span>`).join('')
+    return `<div class="sense">${pos}${glosses}</div>`
+  }).join('')
+
+  const back = `
+<div class="sentence-front">${highlighted}</div>
+<hr>
+<div class="word">${entry.word}</div>
+<div class="reading">${reading}</div>
+${entry.jlpt ? `<div class="jlpt">N${entry.jlpt}</div>` : ''}
+<hr>
+<div class="section">
+  <div class="section-title">💡 Meanings</div>
+  ${meaningsHtml}
+</div>`
+
+  return { front, back }
+}
+
 export function buildBasicCard(entry: DictEntry, sentence: string): GeneratedCard {
   const reading = entry.readings[0] ?? ''
   const pitch = entry.pitch[0]
@@ -59,11 +97,13 @@ ${entry.freqRank ? `<div class="freq">#${entry.freqRank.toLocaleString()}</div>`
     const onReading = k.readings_on[0] ?? ''
     const kunReading = k.readings_kun[0]?.replace(/[.-].*/, '') ?? ''
     const meaning = k.meanings[0] ?? ''
+    const rtk = k.rtk
     return `<div class="kanji-block">
       <span class="kanji-char">${k.literal}</span>
       <span class="kanji-readings">${[onReading, kunReading].filter(Boolean).join(' / ')}</span>
-      <span class="kanji-meaning">${meaning}</span>
+      <span class="kanji-meaning">${rtk ? `RTK #${rtk.frame}: ${escapeHtml(rtk.keyword)}` : escapeHtml(meaning)}</span>
       ${k.jlpt ? `<span class="kanji-jlpt">N${k.jlpt}</span>` : ''}
+      ${rtk ? `<div class="kanji-story">${escapeHtml(rtk.story)}</div>` : ''}
     </div>`
   }).join('')}
 </div>` : ''
@@ -110,7 +150,10 @@ export async function generateCard(
     .map((s, i) => `${i + 1}. [${s.pos[0] ?? ''}] ${s.glosses.slice(0, 2).join(', ')}`)
     .join('\n')
   const kanjiInfo = entry.kanjiBreakdown
-    .map((k) => `${k.literal}: ${k.meanings[0] ?? ''} (on: ${k.readings_on[0] ?? '-'}, kun: ${k.readings_kun[0] ?? '-'})`)
+    .map((k) => {
+      const rtk = k.rtk ? `; RTK #${k.rtk.frame} keyword: ${k.rtk.keyword}; story: ${k.rtk.story}` : ''
+      return `${k.literal}: ${k.meanings[0] ?? ''} (on: ${k.readings_on[0] ?? '-'}, kun: ${k.readings_kun[0] ?? '-'})${rtk}`
+    })
     .join('\n')
 
   const prompt = `You are a Japanese language card generator. Generate a rich Anki card back for the word below.

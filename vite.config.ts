@@ -7,4 +7,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  optimizeDeps: {
+    exclude: ['@xenova/transformers', '@huggingface/transformers'],
+  },
+  worker: {
+    format: 'es',
+  },
 })

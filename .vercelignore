@@ -1,0 +1,9 @@
+Audiobooks/
+dist/
+node_modules/
+scripts/__pycache__/
+scripts/data/
+
+.env
+.env.*
+*.local

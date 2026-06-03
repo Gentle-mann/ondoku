@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --bg: #f2f3f4;
+        --surface: #ffffff;
+        --ink: #111827;
+        --muted: #4b5563;
+        --line: #d9dee2;
+        --green: #34a853;
+        --green-soft: #e8f7ed;
+        --blue: #2563eb;
+        --blue-soft: #eaf2ff;
+        --amber: #f59e0b;
+        --amber-soft: #fff5dc;
+        --red: #dc2626;
+        --red-soft: #fff0f0;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 1080px;
+        height: 1920px;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, #f7f9f8 0%, #edf0ef 100%);
+      }
+
+      .brand-rail {
+        position: absolute;
+        top: 42px;
+        left: 54px;
+        right: 54px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 30;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 28px;
+        font-weight: 850;
+      }
+
+      .brand-mark {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: var(--green);
+        box-shadow: 0 16px 32px rgba(52, 168, 83, 0.24);
+      }
+
+      .brand-mark::after {
+        content: "";
+        width: 22px;
+        height: 22px;
+        border-radius: 8px;
+        background: #ffffff;
+      }
+
+      .event-chip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        height: 44px;
+        padding: 0 18px;
+        border: 1px solid rgba(52, 168, 83, 0.28);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        color: #166534;
+        font-size: 17px;
+        font-weight: 800;
+      }
+
+      .event-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .scene {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .scene-inner {
+        position: absolute;
+        inset: 118px 54px 54px;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 28px;
+      }
+
+      .copy {
+        max-width: 920px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .kicker {
+        width: max-content;
+        max-width: 100%;
+        padding: 9px 14px;
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: #166534;
+        font-size: 16px;
+        line-height: 1;
+        font-weight: 850;
+        text-transform: uppercase;
+      }
+
+      .headline {
+        max-width: 930px;
+        font-size: 66px;
+        line-height: 0.98;
+        letter-spacing: 0;
+        font-weight: 900;
+      }
+
+      .subhead {
+        max-width: 840px;
+        color: var(--muted);
+        font-size: 27px;
+        line-height: 1.24;
+        font-weight: 520;
+      }
+
+      .stage {
+        position: relative;
+        display: grid;
+        place-items: center;
+        min-height: 1250px;
+      }
+
+      .phone {
+        position: relative;
+        width: 690px;
+        height: 1493px;
+        padding: 18px;
+        border-radius: 76px;
+        background: #0f1316;
+        box-shadow:
+          0 54px 110px rgba(17, 24, 39, 0.25),
+          inset 0 0 0 3px rgba(255, 255, 255, 0.06);
+      }
+
+      .phone::before {
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        width: 182px;
+        height: 42px;
+        transform: translateX(-50%);
+        border-radius: 0 0 28px 28px;
+        background: #0f1316;
+        z-index: 4;
+      }
+
+      .screen {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 58px;
+        background: #ffffff;
+      }
+
+      .screen img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .event-mask {
+        position: absolute;
+        z-index: 7;
+        display: flex;
+        align-items: center;
+        background: #eef8ef;
+        color: var(--ink);
+        font-weight: 850;
+        letter-spacing: 0;
+        overflow: hidden;
+      }
+
+      .event-mask.home {
+        left: 124px;
+        top: 503px;
+        width: 398px;
+        height: 34px;
+        font-size: 24px;
+      }
+
+      .event-mask.events-top {
+        left: 156px;
+        top: 418px;
+        width: 306px;
+        height: 38px;
+        background: #fbf5ff;
+        font-size: 28px;
+      }
+
+      .event-mask.events-owned {
+        left: 156px;
+        top: 868px;
+        width: 306px;
+        height: 38px;
+        background: #fbf5ff;
+        font-size: 28px;
+      }
+
+      .event-mask.detail {
+        left: 13px;
+        top: 210px;
+        width: 435px;
+        height: 54px;
+        font-size: 34px;
+      }
+
+      .event-mask.detail-clipped {
+        left: 13px;
+        top: 146px;
+        width: 316px;
+        height: 44px;
+        font-size: 31px;
+      }
+
+      .venue-mask {
+        position: absolute;
+        z-index: 7;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        white-space: nowrap;
+        background: #eaf7ec;
+        color: #31343a;
+        font-weight: 520;
+        letter-spacing: 0;
+      }
+
+      .venue-mask.events-top {
+        left: 156px;
+        top: 475px;
+        width: 498px;
+        height: 28px;
+        background: #fbf5ff;
+        font-size: 18px;
+      }
+
+      .venue-mask.events-owned {
+        left: 156px;
+        top: 925px;
+        width: 486px;
+        height: 58px;
+        align-items: flex-start;
+        padding-top: 4px;
+        background: #fbf5ff;
+        font-size: 18px;
+        line-height: 1.2;
+        white-space: normal;
+      }
+
+      .venue-mask.detail {
+        left: 13px;
+        top: 264px;
+        width: 620px;
+        height: 31px;
+        font-size: 18px;
+      }
+
+      .venue-mask.detail-clipped {
+        left: 13px;
+        top: 207px;
+        width: 620px;
+        height: 34px;
+        font-size: 18px;
+      }
+
+      .venue-mask.progress {
+        left: 13px;
+        top: 178px;
+        width: 620px;
+        height: 36px;
+        font-size: 18px;
+      }
+
+      .caption {
+        min-height: 86px;
+        display: block;
+        padding: 0 28px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 18px 42px rgba(17, 24, 39, 0.07);
+        color: var(--ink);
+        font-size: 28px;
+        line-height: 1.24;
+        font-weight: 760;
+        text-align: center;
+        align-content: center;
+      }
+
+      .caption b {
+        color: #166534;
+        font-weight: 900;
+      }
+
+      .click-ring {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 11;
+        width: 68px;
+        height: 68px;
+        border: 6px solid rgba(52, 168, 83, 0.78);
+        border-radius: 999px;
+        background: rgba(52, 168, 83, 0.12);
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.52);
+      }
+
+      .click-ring.blue {
+        border-color: rgba(37, 99, 235, 0.76);
+        background: rgba(37, 99, 235, 0.12);
+      }
+
+      .click-ring.amber {
+        border-color: rgba(245, 158, 11, 0.78);
+        background: rgba(245, 158, 11, 0.12);
+      }
+
+      .click-ring.red {
+        border-color: rgba(220, 38, 38, 0.78);
+        background: rgba(220, 38, 38, 0.12);
+      }
+
+      .cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        z-index: 12;
+        width: 78px;
+        height: 94px;
+        opacity: 0;
+        transform: translate(-7px, -7px);
+        transform-origin: 7px 7px;
+        filter: drop-shadow(0 8px 12px rgba(17, 24, 39, 0.38));
+      }
+
+      .cursor svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+
+      .focus-box {
+        position: absolute;
+        z-index: 8;
+        border: 5px solid rgba(52, 168, 83, 0.78);
+        border-radius: 24px;
+        box-shadow:
+          0 0 0 999px rgba(17, 24, 39, 0.04),
+          0 14px 36px rgba(17, 24, 39, 0.18);
+        opacity: 0.88;
+      }
+
+      .focus-box.blue {
+        border-color: rgba(37, 99, 235, 0.74);
+      }
+
+      .focus-box.amber {
+        border-color: rgba(245, 158, 11, 0.78);
+      }
+
+      .focus-box.red {
+        border-color: rgba(220, 38, 38, 0.76);
+      }
+
+      .final-board {
+        width: 900px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+      }
+
+      .final-step {
+        min-height: 230px;
+        padding: 24px 20px;
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 18px 44px rgba(17, 24, 39, 0.08);
+      }
+
+      .final-icon {
+        width: 54px;
+        height: 54px;
+        margin-bottom: 18px;
+        border-radius: 18px;
+        display: grid;
+        place-items: center;
+        background: var(--green-soft);
+        color: #166534;
+        font-size: 28px;
+        font-weight: 900;
+      }
+
+      .final-title {
+        margin-bottom: 9px;
+        font-size: 28px;
+        line-height: 1.05;
+        font-weight: 900;
+      }
+
+      .final-note {
+        color: var(--muted);
+        font-size: 19px;
+        line-height: 1.22;
+        font-weight: 560;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="54"
+      data-width="1080"
+      data-height="1920"
+    >
+      <div class="brand-rail">
+        <div class="brand"><div class="brand-mark" aria-hidden="true"></div> StylesGo Barber</div>
+        <div class="event-chip"><span class="event-dot"></span> Example Event</div>
+      </div>
+      <audio
+        id="music-bed"
+        data-start="0"
+        data-duration="54"
+        data-track-index="2"
+        data-volume="0.75"
+        src="assets/audio/stylesgo-ops-groove.wav"
+      ></audio>
+
+      <section id="scene-1" class="scene clip" data-start="0" data-duration="5" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Lead barber walkthrough</div>
+            <h1 class="headline">Manage Example Event in the real app.</h1>
+            <p class="subhead">Start from the event card, then run arrival, queue updates, and closeout from the barber app.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/01-home-upcoming.png" alt="StylesGo home screen with upcoming event card" />
+                <div class="event-mask home">Upcoming: Example Event</div>
+              </div>
+              <div class="focus-box green" style="left:28px; top:492px; width:632px; height:118px;"></div>
+              <div class="cursor" data-cursor="home"></div>
+              <div class="click-ring" data-click="home"></div>
+            </div>
+          </div>
+          <div class="caption">Open StylesGo Barber and find <b>Example Event</b>.</div>
+        </div>
+      </section>
+
+      <section id="scene-2" class="scene clip" data-start="5" data-duration="6" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Requests > Events</div>
+            <h2 class="headline">Use My events for the assigned slot.</h2>
+            <p class="subhead">The real event card shows role, time, venue, signups, and booking hours.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/05-requests-events.png" alt="Requests Events tab showing My events card" />
+                <div class="event-mask events-top">Example Event</div>
+                <div class="event-mask events-owned">Example Event</div>
+                <div class="venue-mask events-top">Jun 6 · 5:00pm · Example Venue</div>
+                <div class="venue-mask events-owned">Jun 6 · 5:00pm · Example Venue</div>
+              </div>
+              <div class="focus-box green" style="left:44px; top:852px; width:604px; height:300px;"></div>
+              <div class="cursor" data-cursor="my-events"></div>
+              <div class="click-ring" data-click="my-events"></div>
+            </div>
+          </div>
+          <div class="caption">Tap <b>Requests</b>, then <b>Events</b>, and open the My events card.</div>
+        </div>
+      </section>
+
+      <section id="scene-3" class="scene clip" data-start="11" data-duration="6" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Before start</div>
+            <h2 class="headline">Review the event details before cutting.</h2>
+            <p class="subhead">Venue, parking, arrival notes, and the Start Event control are all on the event detail page.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/02-event-get-ready.png" alt="Event get ready screen with instructions and Start Event button" />
+                <div class="event-mask detail">Example Event</div>
+                <div class="venue-mask detail">Example Venue · 7000 Coliseum Way</div>
+              </div>
+              <div class="focus-box blue" style="left:50px; top:940px; width:590px; height:446px;"></div>
+            </div>
+          </div>
+          <div class="caption">Before the first attendee, confirm the <b>venue notes</b> and setup instructions.</div>
+        </div>
+      </section>
+
+      <section id="scene-4" class="scene clip" data-start="17" data-duration="6" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Arrival</div>
+            <h2 class="headline">Tell ops when you are on site.</h2>
+            <p class="subhead">Tap I've arrived. If timing changes, use Running late so the event team has the ETA.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/03-event-manager-arrival.png" alt="Event screen with event manager and I've arrived controls" />
+                <div class="event-mask detail">Example Event</div>
+                <div class="venue-mask detail">Example Venue · 7000 Coliseum Way</div>
+              </div>
+              <div class="focus-box blue" style="left:458px; top:607px; width:210px; height:68px;"></div>
+              <div class="cursor" data-cursor="arrived"></div>
+              <div class="click-ring blue" data-click="arrived"></div>
+            </div>
+          </div>
+          <div class="caption">Use <b>I've arrived</b> or <b>Running late?</b> before the event starts.</div>
+        </div>
+      </section>
+
+      <section id="scene-5" class="scene clip" data-start="23" data-duration="6" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Start</div>
+            <h2 class="headline">Lead barber starts the event.</h2>
+            <p class="subhead">Once the station is ready, Start Event moves the page into live queue mode.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/06-event-in-progress-top.png" alt="Event in progress screen after Start Event" />
+                <div class="event-mask detail-clipped">Example Event</div>
+                <div class="venue-mask detail-clipped">Example Venue · 7000 Coliseum Way</div>
+              </div>
+              <div class="focus-box amber" style="left:10px; top:632px; width:668px; height:92px;"></div>
+            </div>
+          </div>
+          <div class="caption">After <b>Start Event</b>, the app tracks live progress for the queue.</div>
+        </div>
+      </section>
+
+      <section id="scene-6" class="scene clip" data-start="29" data-duration="7" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Participant queue</div>
+            <h2 class="headline">Use the three-dot menu for each attendee.</h2>
+            <p class="subhead">The menu exposes the field actions: start cut, mark done, no-show, and reset.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/09-participant-in-service-actions.png" alt="Participant menu showing Mark done and No-show actions" />
+                <div class="venue-mask progress">Example Venue · 7000 Coliseum Way</div>
+              </div>
+              <div class="focus-box green" style="left:124px; top:1400px; width:210px; height:76px;"></div>
+              <div class="cursor" data-cursor="mark-done"></div>
+              <div class="click-ring" data-click="mark-done"></div>
+            </div>
+          </div>
+          <div class="caption">Search by name, open actions, then keep each participant status current.</div>
+        </div>
+      </section>
+
+      <section id="scene-7" class="scene clip" data-start="36" data-duration="6" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Status updates</div>
+            <h2 class="headline">Completed and no-show both matter.</h2>
+            <p class="subhead">Mark each person correctly so the event totals, invoice review, and closeout are clean.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/11-no-show-marked.png" alt="Participant list showing completed and no-show statuses" />
+                <div class="venue-mask progress">Example Venue · 7000 Coliseum Way</div>
+              </div>
+              <div class="focus-box red" style="left:112px; top:1148px; width:430px; height:184px;"></div>
+            </div>
+          </div>
+          <div class="caption">Use <b>Mark done</b> for completed cuts and <b>No-show</b> when someone does not arrive.</div>
+        </div>
+      </section>
+
+      <section id="scene-8" class="scene clip" data-start="42" data-duration="6" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Closeout check</div>
+            <h2 class="headline">End only when the queue is clean.</h2>
+            <p class="subhead">The end-ready state shows all visible attendees marked completed or no-show.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/12-end-ready-progress.png" alt="Event in progress with completed and no-show participant statuses" />
+                <div class="venue-mask progress">Example Venue · 7000 Coliseum Way</div>
+              </div>
+              <div class="focus-box amber" style="left:10px; top:410px; width:668px; height:92px;"></div>
+            </div>
+          </div>
+          <div class="caption">Before ending, scan the list and make sure every attendee is resolved.</div>
+        </div>
+      </section>
+
+      <section id="scene-9" class="scene clip" data-start="48" data-duration="4" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">End event</div>
+            <h2 class="headline">Confirm the closeout.</h2>
+            <p class="subhead">The lead barber ends the event and records the actual time worked.</p>
+          </div>
+          <div class="stage">
+            <div class="phone">
+              <div class="screen">
+                <img src="assets/captures/13-end-event-dialog.png" alt="End event confirmation dialog" />
+              </div>
+              <div class="focus-box red" style="left:354px; top:835px; width:224px; height:74px;"></div>
+              <div class="cursor" data-cursor="end-event"></div>
+              <div class="click-ring red" data-click="end-event"></div>
+            </div>
+          </div>
+          <div class="caption">Tap <b>End event</b> after the queue is complete.</div>
+        </div>
+      </section>
+
+      <section id="scene-10" class="scene clip" data-start="52" data-duration="2" data-track-index="1">
+        <div class="scene-inner">
+          <div class="copy">
+            <div class="kicker">Field rhythm</div>
+            <h2 class="headline">Arrive. Start. Update. End clean.</h2>
+            <p class="subhead">That is the lead barber loop for Example Event.</p>
+          </div>
+          <div class="stage">
+            <div class="final-board">
+              <div class="final-step">
+                <div class="final-icon">1</div>
+                <div class="final-title">Arrive</div>
+                <div class="final-note">Log on-site status or running late.</div>
+              </div>
+              <div class="final-step">
+                <div class="final-icon">2</div>
+                <div class="final-title">Start</div>
+                <div class="final-note">Begin only when the station is ready.</div>
+              </div>
+              <div class="final-step">
+                <div class="final-icon">3</div>
+                <div class="final-title">Update</div>
+                <div class="final-note">Keep every participant current.</div>
+              </div>
+              <div class="final-step">
+                <div class="final-icon">4</div>
+                <div class="final-title">End</div>
+                <div class="final-note">Close only after the queue is clean.</div>
+              </div>
+            </div>
+          </div>
+          <div class="caption">Share this loop with the lead barber: <b>arrive, start, update, end clean</b>.</div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const cursorSvg = `
+        <svg viewBox="0 0 86 104" aria-hidden="true" focusable="false">
+          <path d="M9 7L9 82L32 61L48 99L66 91L50 55L80 55Z" fill="#ffffff" stroke="#0f172a" stroke-width="7" stroke-linejoin="round" />
+          <path d="M17 24L17 66L32 52L46 85L53 82L39 49L62 49Z" fill="#34a853" opacity="0.98" />
+        </svg>`;
+      document.querySelectorAll(".cursor").forEach((cursor) => {
+        cursor.innerHTML = cursorSvg;
+      });
+      const tl = gsap.timeline({ paused: true });
+
+      tl.to(".event-dot", { scale: 1.38, opacity: 0.62, duration: 0.82, yoyo: true, repeat: 64, ease: "sine.inOut" }, 0);
+
+      const scenes = [
+        ["#scene-1", 0, 5],
+        ["#scene-2", 5, 6],
+        ["#scene-3", 11, 6],
+        ["#scene-4", 17, 6],
+        ["#scene-5", 23, 6],
+        ["#scene-6", 29, 7],
+        ["#scene-7", 36, 6],
+        ["#scene-8", 42, 6],
+        ["#scene-9", 48, 4],
+        ["#scene-10", 52, 2],
+      ];
+
+      scenes.forEach(([selector, start, duration], index) => {
+        tl.set(selector, { opacity: 1 }, start);
+        tl.set(selector, { opacity: 0 }, start + duration - 0.04);
+        tl.from(`${selector} .kicker`, { opacity: 0, y: 18, duration: 0.42, ease: "power2.out" }, start + 0.1);
+        tl.from(`${selector} .headline`, { opacity: 0, y: 32, duration: 0.56, ease: "power3.out" }, start + 0.22);
+        tl.from(`${selector} .subhead`, { opacity: 0, y: 22, duration: 0.48, ease: "power2.out" }, start + 0.36);
+        if (index < 9) {
+          tl.from(`${selector} .phone`, { opacity: 0, y: 58, scale: 0.975, duration: 0.62, ease: "power3.out" }, start + 0.56);
+          tl.from(`${selector} .focus-box`, { opacity: 0, scale: 0.96, duration: 0.42, ease: "power2.out" }, start + 0.98);
+        } else {
+          tl.from(`${selector} .final-step`, { opacity: 0, y: 30, stagger: 0.08, duration: 0.38, ease: "power2.out" }, start + 0.6);
+        }
+        tl.from(`${selector} .caption`, { opacity: 0, y: 26, duration: 0.42, ease: "power2.out" }, start + 1.02);
+      });
+
+      const focusMoves = [
+        ["#scene-1", 1.35, 1.02, -18, 44],
+        ["#scene-2", 6.35, 1.0, -8, 42],
+        ["#scene-3", 12.35, 1.0, -10, 28],
+        ["#scene-4", 18.35, 0.94, 0, -88],
+        ["#scene-5", 24.35, 0.94, 0, -88],
+        ["#scene-6", 30.35, 0.94, 0, -88],
+        ["#scene-7", 37.35, 0.94, 0, -88],
+        ["#scene-8", 43.35, 0.94, 0, -88],
+        ["#scene-9", 49.0, 0.94, 0, -88],
+      ];
+
+      focusMoves.forEach(([selector, at, scale, x, y]) => {
+        tl.to(`${selector} .phone`, { scale, x, y, duration: 0.62, ease: "power2.out" }, at);
+      });
+
+      const clicks = [
+        ["home", 3.0, 600, 552, -142, -116],
+        ["my-events", 8.15, 596, 995, -136, -112],
+        ["arrived", 20.0, 560, 643, -136, -104],
+        ["mark-done", 33.0, 220, 1438, -116, -96],
+        ["end-event", 50.15, 466, 865, -120, -100],
+      ];
+
+      clicks.forEach(([name, at, x, y, offsetX, offsetY]) => {
+        const cursor = `[data-cursor='${name}']`;
+        const ring = `[data-click='${name}']`;
+        tl.set(cursor, { x: x + offsetX, y: y + offsetY, opacity: 0, scale: 1, rotation: -7 }, at - 0.68);
+        tl.to(cursor, { opacity: 1, duration: 0.14, ease: "power1.out" }, at - 0.68);
+        tl.to(cursor, { x, y, duration: 0.5, ease: "power2.out" }, at - 0.54);
+        tl.to(cursor, { scale: 0.86, duration: 0.08, ease: "power1.in" }, at);
+        tl.to(cursor, { scale: 1, duration: 0.14, ease: "power1.out" }, at + 0.08);
+        tl.set(ring, { x, y, opacity: 0, scale: 0.38 }, at + 0.02);
+        tl.to(ring, { opacity: 1, scale: 1, duration: 0.18, ease: "power2.out" }, at + 0.02);
+        tl.to(ring, { opacity: 0, scale: 1.58, duration: 0.5, ease: "power2.out" }, at + 0.2);
+        tl.to(cursor, { opacity: 0, duration: 0.2, ease: "power1.out" }, at + 0.62);
+      });
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

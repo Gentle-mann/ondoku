@@ -26,3 +26,4 @@ public/audio/*.mp3
 *.sln
 *.sw?
 .vercel
+.env.local

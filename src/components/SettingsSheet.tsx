@@ -1,6 +1,11 @@
 import { useReaderStore } from '../store/readerStore'
 import { audioPlayer } from '../lib/audioPlayer'
-import { useState } from 'react'
+import { checkClipServer } from '../lib/audioClip'
+import { supabase } from '../lib/supabase'
+import { scheduleSettingsPush, currentSettingsSnapshot, syncFromCloud } from '../lib/sync'
+import { useState, useEffect } from 'react'
+import { Loader2, RefreshCw, X } from 'lucide-react'
+import { AuthSheet } from './AuthSheet'
 
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5]
 
@@ -13,6 +18,9 @@ export function SettingsSheet() {
     ankiDeck,
     claudeApiKey,
     cardType,
+    userId,
+    userEmail,
+    lastSyncedAt,
     setShowSettings,
     setShowFurigana,
     setIntensiveMode,
@@ -24,22 +32,75 @@ export function SettingsSheet() {
 
   const [deckInput, setDeckInput] = useState(ankiDeck)
   const [keyInput, setKeyInput] = useState(claudeApiKey)
+  const [clipServerUp, setClipServerUp] = useState<boolean | null>(null)
+  const [showAuthSheet, setShowAuthSheet] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+
+  useEffect(() => {
+    if (!showSettings) return
+    setClipServerUp(null)
+    checkClipServer().then(setClipServerUp)
+  }, [showSettings])
+
+  // Keep inputs in sync when pulled from cloud
+  useEffect(() => { setDeckInput(ankiDeck) }, [ankiDeck])
+  useEffect(() => { setKeyInput(claudeApiKey) }, [claudeApiKey])
 
   if (!showSettings) return null
 
   const handleSpeed = (speed: number) => {
     setPlaybackRate(speed)
     audioPlayer.setPlaybackRate(speed)
+    scheduleSettingsPush({ ...currentSettingsSnapshot(), playback_speed: speed })
   }
 
   const handleDeckBlur = () => {
     const trimmed = deckInput.trim()
-    if (trimmed) setAnkiDeck(trimmed)
-    else setDeckInput(ankiDeck)
+    if (trimmed) {
+      setAnkiDeck(trimmed)
+      scheduleSettingsPush({ ...currentSettingsSnapshot(), anki_deck: trimmed })
+    } else {
+      setDeckInput(ankiDeck)
+    }
   }
 
   const handleKeyBlur = () => {
-    setClaudeApiKey(keyInput.trim())
+    const trimmed = keyInput.trim()
+    setClaudeApiKey(trimmed)
+    scheduleSettingsPush({ ...currentSettingsSnapshot(), claude_api_key: trimmed })
+  }
+
+  const handleToggle = (field: 'furigana' | 'intensive', value: boolean) => {
+    if (field === 'furigana') {
+      setShowFurigana(value)
+      scheduleSettingsPush({ ...currentSettingsSnapshot(), show_furigana: value })
+    } else {
+      setIntensiveMode(value)
+      scheduleSettingsPush({ ...currentSettingsSnapshot(), intensive_mode: value })
+    }
+  }
+
+  const handleCardType = (t: 'sentence' | 'word') => {
+    setCardType(t)
+    scheduleSettingsPush({ ...currentSettingsSnapshot(), card_type: t })
+  }
+
+  const handleSignOut = async () => {
+    await supabase?.auth.signOut()
+  }
+
+  const handleManualSync = async () => {
+    setSyncing(true)
+    await syncFromCloud()
+    setSyncing(false)
+  }
+
+  const syncLabel = () => {
+    if (!lastSyncedAt) return 'Not synced yet'
+    const diff = Math.round((Date.now() - lastSyncedAt) / 1000)
+    if (diff < 60) return 'Synced just now'
+    if (diff < 3600) return `Synced ${Math.round(diff / 60)}m ago`
+    return `Synced ${Math.round(diff / 3600)}h ago`
   }
 
   return (
@@ -47,23 +108,70 @@ export function SettingsSheet() {
       <div className="absolute inset-0 bg-black/40 z-20" onClick={() => setShowSettings(false)} />
 
       <div
-        className="absolute bottom-[52px] left-0 right-0 z-30 rounded-t-[16px]"
-        style={{ backgroundColor: '#1A1A1A', boxShadow: '0 -4px 24px rgba(0,0,0,0.4)' }}
+        className="absolute bottom-[52px] left-0 right-0 z-30 rounded-t-[16px] overflow-y-auto"
+        style={{ backgroundColor: '#1A1A1A', boxShadow: '0 -4px 24px rgba(0,0,0,0.4)', maxHeight: '65dvh' }}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-9 h-1 rounded-full" style={{ backgroundColor: '#333' }} />
+        <div className="flex items-center justify-between pt-4 px-5 pb-2 shrink-0">
+          <p className="font-sans text-xs text-muted-foreground uppercase tracking-widest">Settings</p>
+          <button
+            onClick={() => setShowSettings(false)}
+            className="p-1 rounded-full active:opacity-60"
+            style={{ backgroundColor: '#2A2A2A' }}
+          >
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
         </div>
 
         <div className="px-5 pb-6 flex flex-col gap-5">
-          <p className="font-sans text-xs text-muted-foreground uppercase tracking-widest">Settings</p>
+
+          {/* ── Account ─────────────────────────────────────────────────── */}
+          <div
+            className="rounded-xl px-4 py-3 flex flex-col gap-2"
+            style={{ backgroundColor: '#111', border: '1px solid #222' }}
+          >
+            {userId ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-sans text-[13px] text-foreground font-medium">{userEmail}</p>
+                    <p className="font-sans text-[11px] text-muted-foreground">{syncLabel()}</p>
+                  </div>
+                  <button
+                    onClick={handleManualSync}
+                    disabled={syncing}
+                    className="p-1.5 rounded-lg active:opacity-60"
+                    style={{ backgroundColor: '#1A1A1A' }}
+                    title="Sync now"
+                  >
+                    {syncing
+                      ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      : <RefreshCw className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-sans text-[13px] text-foreground font-medium">Sync across devices</p>
+                  <p className="font-sans text-[11px] text-muted-foreground">Sign in to sync settings & progress</p>
+                </div>
+                <button
+                  onClick={() => setShowAuthSheet(true)}
+                  className="px-3 py-1.5 rounded-lg font-sans text-[12px] font-medium active:opacity-70"
+                  style={{ backgroundColor: '#C8A96E', color: '#111' }}
+                >
+                  Sign In
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Furigana */}
           <ToggleRow
             label="Furigana"
             sublabel="Show readings above kanji"
             value={showFurigana}
-            onChange={setShowFurigana}
+            onChange={(v) => handleToggle('furigana', v)}
           />
 
           {/* Intensive mode */}
@@ -71,7 +179,7 @@ export function SettingsSheet() {
             label="Intensive Mode"
             sublabel="Pause after every sentence"
             value={intensiveMode}
-            onChange={setIntensiveMode}
+            onChange={(v) => handleToggle('intensive', v)}
           />
 
           {/* Card type */}
@@ -84,7 +192,7 @@ export function SettingsSheet() {
               {(['sentence', 'word'] as const).map((t) => (
                 <button
                   key={t}
-                  onClick={() => setCardType(t)}
+                  onClick={() => handleCardType(t)}
                   className="flex-1 py-2 rounded-lg font-sans text-[13px] transition-colors active:opacity-70 capitalize"
                   style={{
                     backgroundColor: cardType === t ? '#C8A96E' : '#2A2A2A',
@@ -107,7 +215,7 @@ export function SettingsSheet() {
               value={deckInput}
               onChange={(e) => setDeckInput(e.target.value)}
               onBlur={handleDeckBlur}
-              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget.blur())}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
               className="w-full rounded-lg px-3 py-2 font-sans text-[14px] text-foreground outline-none"
               style={{ backgroundColor: '#2A2A2A', border: '1px solid #333' }}
               placeholder="Deck name"
@@ -133,6 +241,21 @@ export function SettingsSheet() {
             )}
           </div>
 
+          {/* Audio clip server status */}
+          <div className="flex flex-col gap-1">
+            <p className="font-sans text-[15px] text-foreground">Audio Clips</p>
+            <p className="font-sans text-[12px] text-muted-foreground">
+              Attach the sentence audio to each mined card
+            </p>
+            <p className="font-sans text-[12px] mt-1" style={{ color: clipServerUp === true ? '#4CAF50' : clipServerUp === false ? '#666' : '#888' }}>
+              {clipServerUp === null
+                ? '⏳ Checking…'
+                : clipServerUp
+                  ? '🟢 Audio server running'
+                  : '⚪ Audio server offline — python scripts/clip_server.py'}
+            </p>
+          </div>
+
           {/* Playback speed */}
           <div className="flex flex-col gap-2">
             <div>
@@ -156,8 +279,21 @@ export function SettingsSheet() {
               ))}
             </div>
           </div>
+
+          {/* Sign out — at the bottom to avoid accidental taps */}
+          {userId && (
+            <button
+              onClick={handleSignOut}
+              className="w-full py-2.5 rounded-xl font-sans text-[13px] active:opacity-60"
+              style={{ backgroundColor: '#1A1A1A', color: '#666', border: '1px solid #222' }}
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </div>
+
+      {showAuthSheet && <AuthSheet onClose={() => setShowAuthSheet(false)} />}
     </>
   )
 }

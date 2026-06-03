@@ -6,14 +6,16 @@
 
 import { expose } from 'comlink'
 import initSqlJs, { type Database } from 'sql.js'
-import type { DictEntry, DictSense, DictStatus, KanjiBreakdown } from '../lib/dictTypes'
+import type { DictEntry, DictSense, DictStatus, KanjiBreakdown, KanjiExampleWord, RtkKanjiInfo } from '../lib/dictTypes'
 
 const DB_URL = '/dict/ondoku_dict.db'
+const RTK_URL = '/dict/rtk-kanji.json'
 const IDB_STORE = 'ondoku'
 const IDB_KEY = 'dict_db'
 const WASM_URL = '/sql-wasm.wasm'
 
 let db: Database | null = null
+let rtkByLiteral: Map<string, RtkKanjiInfo> | null = null
 let status: DictStatus = { state: 'idle', progress: 0 }
 let onStatusChange: ((s: DictStatus) => void) | null = null
 
@@ -120,6 +122,31 @@ async function init(): Promise<void> {
     setStatus({ state: 'error', progress: 0, error: msg })
     throw e
   }
+}
+
+async function loadRtkData(): Promise<Map<string, RtkKanjiInfo>> {
+  if (rtkByLiteral) return rtkByLiteral
+
+  rtkByLiteral = new Map()
+  try {
+    const res = await fetch(RTK_URL)
+    if (!res.ok) return rtkByLiteral
+    const payload = await res.json() as { entries?: RtkRecord[] }
+    for (const row of payload.entries ?? []) {
+      rtkByLiteral.set(row.k, {
+        frame: row.f,
+        keyword: row.kw,
+        components: row.c ?? [],
+        story: row.story,
+        storySource: row.storySource,
+        strokeCount: row.s ?? null,
+        jlpt: row.jlpt ?? null,
+      })
+    }
+  } catch (e) {
+    console.warn('[dict worker] RTK data unavailable:', e)
+  }
+  return rtkByLiteral
 }
 
 // ── Query helpers ────────────────────────────────────────────────────────────
@@ -242,8 +269,10 @@ async function lookupWord(surface: string): Promise<DictEntry | null> {
   )
 
   // Kanji breakdown — look up each unique kanji in the surface
+  const rtkMap = await loadRtkData()
   const kanjiChars = [...new Set([...surface].filter(isKanji))]
   const kanjiBreakdown: KanjiBreakdown[] = kanjiChars.map((ch) => {
+    const examples = getKanjiExamples(ch, id)
     const row = queryOne<{
       literal: string
       meanings: string
@@ -252,13 +281,16 @@ async function lookupWord(surface: string): Promise<DictEntry | null> {
       jlpt: number | null
     }>('SELECT literal, meanings, readings_on, readings_kun, jlpt FROM kanji_chars WHERE literal = ?', [ch])
 
-    if (!row) return { literal: ch, meanings: [], readings_on: [], readings_kun: [], jlpt: null }
+    const rtk = rtkMap.get(ch)
+    if (!row) return { literal: ch, meanings: [], readings_on: [], readings_kun: [], jlpt: null, rtk, examples }
     return {
       literal: row.literal,
       meanings: safeParseJSON(row.meanings) as string[],
       readings_on: safeParseJSON(row.readings_on) as string[],
       readings_kun: safeParseJSON(row.readings_kun) as string[],
       jlpt: row.jlpt ?? null,
+      rtk,
+      examples,
     }
   })
 
@@ -282,6 +314,7 @@ async function lookupWord(surface: string): Promise<DictEntry | null> {
 async function lookupKanji(char: string): Promise<KanjiBreakdown | null> {
   await init()
   if (!db) return null
+  const rtkMap = await loadRtkData()
 
   const row = queryOne<{
     literal: string
@@ -298,6 +331,8 @@ async function lookupKanji(char: string): Promise<KanjiBreakdown | null> {
     readings_on: safeParseJSON(row.readings_on) as string[],
     readings_kun: safeParseJSON(row.readings_kun) as string[],
     jlpt: row.jlpt ?? null,
+    rtk: rtkMap.get(char),
+    examples: getKanjiExamples(char),
   }
 }
 
@@ -307,6 +342,64 @@ function getStatus(): DictStatus {
 
 function setStatusCallback(cb: (s: DictStatus) => void) {
   onStatusChange = cb
+}
+
+function getKanjiExamples(literal: string, currentEntryId?: number): KanjiExampleWord[] {
+  const excludeCurrent = currentEntryId ? 'AND e.id != ?' : ''
+  const params: (string | number)[] = [literal]
+  if (currentEntryId) params.push(currentEntryId)
+
+  const rows = queryAll<{
+    id: number
+    jlpt: number | null
+    freq_rank: number | null
+    form: string
+  }>(
+    `SELECT e.id, e.jlpt, e.freq_rank, kf.form
+     FROM kanji_forms kf
+     JOIN entries e ON e.id = kf.entry_id
+     WHERE instr(kf.form, ?) > 0
+       ${excludeCurrent}
+     ORDER BY (length(kf.form) = 1) ASC,
+              (e.freq_rank IS NULL) ASC,
+              e.freq_rank ASC,
+              length(kf.form) ASC,
+              kf.form ASC
+     LIMIT 24`,
+    params
+  )
+
+  const examples: KanjiExampleWord[] = []
+  const seenEntryIds = new Set<number>()
+  const seenForms = new Set<string>()
+
+  for (const row of rows) {
+    if (seenEntryIds.has(row.id) || seenForms.has(row.form)) continue
+    seenEntryIds.add(row.id)
+    seenForms.add(row.form)
+
+    const readings = queryAll<{ form: string }>(
+      'SELECT form FROM reading_forms WHERE entry_id = ? LIMIT 3',
+      [row.id]
+    ).map((r) => r.form)
+
+    const sense = queryOne<{ glosses: string }>(
+      'SELECT glosses FROM senses WHERE entry_id = ? LIMIT 1',
+      [row.id]
+    )
+
+    examples.push({
+      word: row.form,
+      readings,
+      meanings: (safeParseJSON(sense?.glosses ?? null) as string[]).slice(0, 2),
+      jlpt: row.jlpt ?? null,
+      freqRank: row.freq_rank ?? null,
+    })
+
+    if (examples.length >= 4) break
+  }
+
+  return examples
 }
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -321,6 +414,17 @@ function isKanji(ch: string): boolean {
   return (cp >= 0x4E00 && cp <= 0x9FFF)   // CJK Unified
     || (cp >= 0x3400 && cp <= 0x4DBF)      // CJK Extension A
     || (cp >= 0xF900 && cp <= 0xFAFF)      // CJK Compatibility
+}
+
+interface RtkRecord {
+  k: string
+  f: number
+  kw: string
+  c?: string[]
+  story: string
+  storySource: 'anki' | 'generated'
+  s?: number | null
+  jlpt?: string | null
 }
 
 // Expose the API via Comlink
