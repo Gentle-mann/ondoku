@@ -178,6 +178,52 @@ def quote_keyword(keyword: str) -> str:
     return f"'{keyword}'"
 
 
+def shape_anchor(kanji: str, keyword: str, stroke_count: int | None) -> str:
+    anchors = [
+        "a chalk mark on a classroom board",
+        "a stamped label on a locked box",
+        "a trail sign at a fork in the road",
+        "a small tattoo on the back of your hand",
+        "a warning mark painted on a door",
+        "a carved mark on a wooden charm",
+        "a glowing icon on a phone screen",
+        "a tag tied to a museum exhibit",
+    ]
+    seed = (ord(kanji[0]) + (stroke_count or 0) + len(keyword)) % len(anchors)
+    return anchors[seed]
+
+
+def keyword_action(keyword: str) -> str:
+    lowered = keyword.casefold()
+    if any(word in lowered for word in ["haunt", "ghost", "curse", "exorc"]):
+        return "the mark vanishes, then reappears whenever you look away, haunting the scene"
+    if any(word in lowered for word in ["resuscitate", "revive", "life"]):
+        return "the mark shocks the scene back to life"
+    if any(word in lowered for word in ["prun", "clip", "cut", "trim"]):
+        return "the mark slices away the extra parts until only the keyword remains"
+    if any(word in lowered for word in ["upbringing", "raise", "nurture"]):
+        return "the mark acts like a parent raising the scene into its final form"
+    if any(word in lowered for word in ["plentiful", "many", "abundant"]):
+        return "the mark keeps multiplying until the scene is overflowing"
+    if any(word in lowered for word in ["measure", "meter", "centimeter", "millimeter", "kilometer", "mile", "inch", "foot", "ton"]):
+        return "the mark becomes a measuring label, forcing the scene to be counted in that unit"
+    if any(word in lowered for word in ["old", "ancient", "former", "alternate"]):
+        return "the mark is found in an old archive, so the age of the object does the remembering"
+    if any(word in lowered for word in ["bright", "light", "spark", "shine", "lamp", "candle"]):
+        return "the mark suddenly lights up, making the keyword visible in the dark"
+    if any(word in lowered for word in ["sound", "voice", "snore", "moo", "song"]):
+        return "the mark makes the exact sound of the keyword when you touch it"
+    if any(word in lowered for word in ["move", "pass", "walk", "run", "steep"]):
+        return "the mark turns into a path, and following that path performs the keyword"
+    if any(word in lowered for word in ["food", "bean", "rice", "fish", "candy"]):
+        return "the mark is stamped on food, and tasting it reveals the keyword"
+    if any(word in lowered for word in ["body", "shin", "neck", "hair", "deaf"]):
+        return "the mark appears on the body part that makes the keyword impossible to miss"
+    if any(word in lowered for word in ["place", "country", "park", "shop", "quarter"]):
+        return "the mark hangs above a place, naming the whole location with the keyword"
+    return f"the mark makes the whole scene act out {quote_keyword(keyword)} as literally as possible"
+
+
 def component_story(kanji: str, keyword: str, primitives: list[str]) -> str:
     keyword_q = quote_keyword(keyword)
     shown = primitives[:4]
@@ -212,14 +258,16 @@ def component_story(kanji: str, keyword: str, primitives: list[str]) -> str:
 
 def shape_story(kanji: str, keyword: str, stroke_count: int | None) -> str:
     keyword_q = quote_keyword(keyword)
+    anchor = shape_anchor(kanji, keyword, stroke_count)
+    action = keyword_action(keyword)
     if stroke_count:
         return (
-            f"Use the written shape itself: {kanji} is a {stroke_count}-stroke key that unlocks {keyword_q}. "
-            f"Imagine writing each stroke on the object until the final stroke makes the keyword appear."
+            f"Picture {kanji} as {anchor}. Trace its {stroke_count} strokes slowly; on the last stroke, "
+            f"{action}. Lock that final moment to {keyword_q}."
         )
     return (
-        f"Use the written shape itself as the hook for {keyword_q}. Imagine the character stamped onto the thing, "
-        f"and the stamp only works when you remember the keyword."
+        f"Picture {kanji} as {anchor}. The shape is not decoration: {action}. "
+        f"Hold that scene when you need {keyword_q}."
     )
 
 

@@ -1,4 +1,4 @@
-import { useReaderStore } from '../store/readerStore'
+import { useReaderStore, type ReaderFontSize } from '../store/readerStore'
 import { audioPlayer } from '../lib/audioPlayer'
 import { checkClipServer } from '../lib/audioClip'
 import { supabase } from '../lib/supabase'
@@ -8,6 +8,11 @@ import { Loader2, RefreshCw, X } from 'lucide-react'
 import { AuthSheet } from './AuthSheet'
 
 const SPEEDS = [0.5, 0.75, 1.0, 1.25, 1.5]
+const READER_FONT_SIZES: Array<{ value: ReaderFontSize; label: string; size: string }> = [
+  { value: 'standard', label: 'Standard', size: '16px' },
+  { value: 'large', label: 'Large', size: '18px' },
+  { value: 'xlarge', label: 'Extra', size: '20px' },
+]
 
 export function SettingsSheet() {
   const {
@@ -15,6 +20,7 @@ export function SettingsSheet() {
     showFurigana,
     intensiveMode,
     playbackRate,
+    readerFontSize,
     ankiDeck,
     claudeApiKey,
     cardType,
@@ -25,6 +31,7 @@ export function SettingsSheet() {
     setShowFurigana,
     setIntensiveMode,
     setPlaybackRate,
+    setReaderFontSize,
     setAnkiDeck,
     setClaudeApiKey,
     setCardType,
@@ -35,11 +42,19 @@ export function SettingsSheet() {
   const [clipServerUp, setClipServerUp] = useState<boolean | null>(null)
   const [showAuthSheet, setShowAuthSheet] = useState(false)
   const [syncing, setSyncing] = useState(false)
+  const [syncNow, setSyncNow] = useState(() => Date.now())
 
   useEffect(() => {
     if (!showSettings) return
     setClipServerUp(null)
+    setSyncNow(Date.now())
     checkClipServer().then(setClipServerUp)
+  }, [showSettings])
+
+  useEffect(() => {
+    if (!showSettings) return
+    const interval = window.setInterval(() => setSyncNow(Date.now()), 60000)
+    return () => window.clearInterval(interval)
   }, [showSettings])
 
   // Keep inputs in sync when pulled from cloud
@@ -85,6 +100,10 @@ export function SettingsSheet() {
     scheduleSettingsPush({ ...currentSettingsSnapshot(), card_type: t })
   }
 
+  const handleReaderFontSize = (size: ReaderFontSize) => {
+    setReaderFontSize(size)
+  }
+
   const handleSignOut = async () => {
     await supabase?.auth.signOut()
   }
@@ -97,7 +116,7 @@ export function SettingsSheet() {
 
   const syncLabel = () => {
     if (!lastSyncedAt) return 'Not synced yet'
-    const diff = Math.round((Date.now() - lastSyncedAt) / 1000)
+    const diff = Math.round((syncNow - lastSyncedAt) / 1000)
     if (diff < 60) return 'Synced just now'
     if (diff < 3600) return `Synced ${Math.round(diff / 60)}m ago`
     return `Synced ${Math.round(diff / 3600)}h ago`
@@ -174,6 +193,32 @@ export function SettingsSheet() {
             onChange={(v) => handleToggle('furigana', v)}
           />
 
+          {/* Reader text size */}
+          <div className="flex flex-col gap-2">
+            <div>
+              <p className="font-sans text-[15px] text-foreground">Reader Text Size</p>
+              <p className="font-sans text-[12px] text-muted-foreground">Larger Japanese text for night reading</p>
+            </div>
+            <div className="flex gap-2">
+              {READER_FONT_SIZES.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleReaderFontSize(option.value)}
+                  className="flex-1 py-2 rounded-lg font-sans text-[13px] transition-colors active:opacity-70"
+                  aria-pressed={readerFontSize === option.value}
+                  style={{
+                    backgroundColor: readerFontSize === option.value ? '#C8A96E' : '#2A2A2A',
+                    color: readerFontSize === option.value ? '#111' : '#D0CBC2',
+                    fontWeight: readerFontSize === option.value ? 600 : 400,
+                  }}
+                >
+                  <span className="block">{option.label}</span>
+                  <span className="block text-[11px] opacity-80">{option.size}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Intensive mode */}
           <ToggleRow
             label="Intensive Mode"
@@ -196,7 +241,7 @@ export function SettingsSheet() {
                   className="flex-1 py-2 rounded-lg font-sans text-[13px] transition-colors active:opacity-70 capitalize"
                   style={{
                     backgroundColor: cardType === t ? '#C8A96E' : '#2A2A2A',
-                    color: cardType === t ? '#111' : '#999',
+                    color: cardType === t ? '#111' : '#D0CBC2',
                     fontWeight: cardType === t ? 600 : 400,
                   }}
                 >
@@ -270,7 +315,7 @@ export function SettingsSheet() {
                   className="flex-1 py-2 rounded-lg font-sans text-[13px] transition-colors active:opacity-70"
                   style={{
                     backgroundColor: playbackRate === s ? '#C8A96E' : '#2A2A2A',
-                    color: playbackRate === s ? '#111' : '#999',
+                    color: playbackRate === s ? '#111' : '#D0CBC2',
                     fontWeight: playbackRate === s ? 600 : 400,
                   }}
                 >

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, forwardRef, useCallback, useState } from 'rea
 import { ChevronLeft, Settings } from 'lucide-react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import { audioPlayer } from '../lib/audioPlayer'
-import { useReaderStore } from '../store/readerStore'
+import { useReaderStore, type ReaderFontSize } from '../store/readerStore'
 import { YANEURA_ALL, findActiveSentence, findActiveWord, type AlignedSentence } from '../lib/alignment'
 import { DictionarySheet } from '../components/DictionarySheet'
 import { AudioBar } from '../components/AudioBar'
@@ -52,6 +52,12 @@ interface BookData {
   chapterLabels: string[]   // shown at episode dividers
 }
 
+const READER_FONT_SIZE_CLASSES: Record<ReaderFontSize, string> = {
+  standard: 'text-[16px]',
+  large: 'text-[18px]',
+  xlarge: 'text-[20px]',
+}
+
 // ── ReaderPage ─────────────────────────────────────────────────────────────────
 
 export function ReaderPage() {
@@ -70,6 +76,7 @@ export function ReaderPage() {
     activeWordIndex,
     intensiveMode,
     playbackRate,
+    readerFontSize,
     showFurigana,
     setIsPlaying,
     setCurrentTime,
@@ -647,6 +654,7 @@ export function ReaderPage() {
                 isActive={index === activeSentenceIndex}
                 activeWordIndex={index === activeSentenceIndex ? activeWordIndex : -1}
                 showFurigana={showFurigana}
+                readerFontSize={readerFontSize}
                 ref={(el) => { sentenceRefs.current[index] = el }}
                 onWordTap={handleWordTap}
                 onWordSeek={handleWordSeek}
@@ -679,15 +687,16 @@ interface SentenceParagraphProps {
   isActive: boolean
   activeWordIndex: number
   showFurigana: boolean
+  readerFontSize: ReaderFontSize
   onWordTap: (word: string, sentence?: AlignedSentence) => void
   onSeek: (sentence: AlignedSentence) => void
   onWordSeek: (time: number) => void
 }
 
 const SentenceParagraph = forwardRef<HTMLParagraphElement, SentenceParagraphProps>(
-  ({ sentence, isActive, activeWordIndex, showFurigana, onWordTap, onSeek, onWordSeek }, ref) => {
+  ({ sentence, isActive, activeWordIndex, showFurigana, readerFontSize, onWordTap, onSeek, onWordSeek }, ref) => {
     const hasWordData = !!(sentence.words && sentence.words.length > 0)
-    const opacity = isActive ? 1.0 : 0.35
+    const opacity = isActive ? 1.0 : 0.55
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
     const didLongPress = useRef(false)
 
@@ -730,7 +739,7 @@ const SentenceParagraph = forwardRef<HTMLParagraphElement, SentenceParagraphProp
 
         <p
           ref={ref}
-          className={`font-serif text-[16px] leading-[2] transition-all duration-300 flex-1 ${
+          className={`font-serif ${READER_FONT_SIZE_CLASSES[readerFontSize]} leading-[2.1] transition-all duration-300 flex-1 ${
             isActive ? 'font-medium' : ''
           }`}
           style={{ opacity: hasWordData && isActive ? 1.0 : opacity }}
@@ -791,7 +800,7 @@ function SentenceContent({
           if (reading) furiganaMap.delete(w.text)
 
           const style: React.CSSProperties = {
-            opacity: spoken ? 1.0 : 0.45,
+            opacity: spoken ? 1.0 : 0.68,
             transition: 'opacity 0.12s ease-out',
           }
 
@@ -833,7 +842,7 @@ function SentenceContent({
       <ruby key={`r${key++}`} className="cursor-pointer" onClick={() => onWordTap(word, sentence)}>
         {word}
         <rp>(</rp>
-        <rt className="text-[10px] font-normal opacity-70">{reading}</rt>
+        <rt className="text-[12px] font-normal opacity-90">{reading}</rt>
         <rp>)</rp>
       </ruby>
     )
@@ -922,7 +931,7 @@ function WordSpan({
       >
         {text}
         <rp>(</rp>
-        <rt className="text-[10px] font-normal opacity-70">{reading}</rt>
+        <rt className="text-[12px] font-normal opacity-90">{reading}</rt>
         <rp>)</rp>
       </ruby>
     )

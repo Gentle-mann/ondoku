@@ -2,14 +2,14 @@
 
 @theme {
   --color-background: #121212;
-  --color-foreground: #F0EDE8;
-  --color-card: #1E1E1E;
-  --color-card-foreground: #F0EDE8;
-  --color-border: #2A2A2A;
-  --color-secondary: #242424;
-  --color-secondary-foreground: #F0EDE8;
-  --color-muted: #1A1A1A;
-  --color-muted-foreground: #888888;
+  --color-foreground: #FAF7F0;
+  --color-card: #202020;
+  --color-card-foreground: #FAF7F0;
+  --color-border: #373737;
+  --color-secondary: #2A2A2A;
+  --color-secondary-foreground: #FAF7F0;
+  --color-muted: #1D1D1D;
+  --color-muted-foreground: #BDB7AE;
   --color-accent: #C8A96E;
   --color-accent-foreground: #121212;
 
@@ -23,7 +23,7 @@
 
 html {
   background-color: #121212;
-  color: #F0EDE8;
+  color: #FAF7F0;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -46,8 +46,8 @@ body {
 }
 
 ruby rt {
-  font-size: 0.6em;
-  opacity: 0.7;
+  font-size: 0.68em;
+  opacity: 0.9;
   font-family: var(--font-sans);
 }
 

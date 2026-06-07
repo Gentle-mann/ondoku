@@ -3,6 +3,15 @@ import type { DictEntry, DictStatus } from '../lib/dictTypes'
 import type { AlignedSentence } from '../lib/alignment'
 
 export const SLEEP_TIMER_STORAGE_KEY = 'ondoku_sleep_timer_deadline'
+const READER_FONT_SIZE_STORAGE_KEY = 'ondoku_reader_font_size'
+
+export type ReaderFontSize = 'standard' | 'large' | 'xlarge'
+
+function getStoredReaderFontSize(): ReaderFontSize {
+  const raw = localStorage.getItem(READER_FONT_SIZE_STORAGE_KEY)
+  if (raw === 'standard' || raw === 'large' || raw === 'xlarge') return raw
+  return 'large'
+}
 
 function getStoredSleepTimerDeadline(): number | null {
   const raw = localStorage.getItem(SLEEP_TIMER_STORAGE_KEY)
@@ -37,6 +46,7 @@ interface ReaderState {
   cardType: 'sentence' | 'word'
   currentEpIndex: number
   currentBookId: string
+  readerFontSize: ReaderFontSize
   showMinePicker: boolean
   showFurigana: boolean
   showSettings: boolean
@@ -66,6 +76,7 @@ interface ReaderState {
   setLastSyncedAt: (t: number | null) => void
   setCurrentEpIndex: (i: number) => void
   setCurrentBookId: (id: string) => void
+  setReaderFontSize: (size: ReaderFontSize) => void
   setShowMinePicker: (v: boolean) => void
   setShowFurigana: (v: boolean) => void
   setShowSettings: (v: boolean) => void
@@ -99,6 +110,7 @@ export const useReaderStore = create<ReaderState>((set) => ({
   cardType: (localStorage.getItem('ondoku_card_type') as 'sentence' | 'word') ?? 'sentence',
   currentEpIndex: 0,
   currentBookId: 'yaneura',
+  readerFontSize: getStoredReaderFontSize(),
   showMinePicker: false,
   showFurigana: localStorage.getItem('ondoku_furigana') !== 'false',
   showSettings: false,
@@ -143,6 +155,10 @@ export const useReaderStore = create<ReaderState>((set) => ({
   setLastSyncedAt: (t) => set({ lastSyncedAt: t }),
   setCurrentEpIndex: (i) => set({ currentEpIndex: i }),
   setCurrentBookId: (id) => set({ currentBookId: id }),
+  setReaderFontSize: (size) => {
+    localStorage.setItem(READER_FONT_SIZE_STORAGE_KEY, size)
+    set({ readerFontSize: size })
+  },
   setShowMinePicker: (v) => set({ showMinePicker: v }),
   setShowFurigana: (v) => {
     localStorage.setItem('ondoku_furigana', String(v))
