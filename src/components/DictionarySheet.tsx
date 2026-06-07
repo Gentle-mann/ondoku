@@ -1,4 +1,4 @@
-import { Plus, Loader2, Check, Wand2, Clock, Languages, BookOpen, Sparkles, Volume2 } from 'lucide-react'
+import { Plus, Loader2, Check, Wand2, Clock, Languages, BookOpen, Sparkles, Volume2, ChevronDown } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import { useReaderStore } from '../store/readerStore'
 import type { DictEntry, KanjiBreakdown, KanjiExampleWord } from '../lib/dictTypes'
@@ -366,8 +366,18 @@ Keep each value concise and learner-friendly.`,
         </div>
 
         {/* Action buttons */}
-        {dictEntry && (
-          <div className="flex border-t shrink-0" style={{ borderColor: '#2A2A2A' }}>
+        <div className="flex border-t shrink-0" style={{ borderColor: '#2A2A2A' }}>
+          <button
+            onClick={() => setShowDictionary(false)}
+            className={`${dictEntry ? 'w-16' : 'flex-1'} h-[52px] flex items-center justify-center active:bg-secondary/50 border-r`}
+            style={{ borderColor: dictEntry ? '#2A2A2A' : 'transparent' }}
+            aria-label="Close word meaning"
+            title="Close"
+          >
+            <ChevronDown className="w-6 h-6" style={{ color: '#D0CBC2' }} />
+          </button>
+          {dictEntry && (
+            <>
             <MineButton
               label="Word card"
               icon={<Plus className="w-4 h-4" />}
@@ -381,8 +391,9 @@ Keep each value concise and learner-friendly.`,
               state={sentenceState}
               onClick={() => handleMine('sentence')}
             />
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </>
   )
