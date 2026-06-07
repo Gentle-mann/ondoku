@@ -13,6 +13,7 @@ import { lookupKanji } from '../lib/dictService'
 const JLPT_LABEL: Record<number, string> = { 1: 'N1', 2: 'N2', 3: 'N3', 4: 'N4', 5: 'N5' }
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
 const TRANS_CACHE_PREFIX = 'ondoku_trans_'
+const CLAUDE_RTK_STORY_PREFIX = 'ondoku_claude_rtk_story_'
 
 type MineState = 'idle' | 'generating' | 'success' | 'queued' | 'error'
 
@@ -319,6 +320,7 @@ Keep each value concise and learner-friendly.`,
                   word={selectedWord}
                   fallback={aiFallback}
                   kanjiBreakdown={aiKanjiBreakdown}
+                  claudeApiKey={claudeApiKey}
                 />
               ) : !claudeApiKey ? (
                 <p className="font-sans text-[13px] text-muted-foreground">
@@ -347,6 +349,7 @@ Keep each value concise and learner-friendly.`,
               )}
               <EntryView
                 entry={dictEntry}
+                claudeApiKey={claudeApiKey}
                 onPlayWord={contextSentence?.words ? () => {
                   const timing = findWordTimingInSentence(contextSentence, dictEntry.word)
                   if (timing) {
@@ -495,7 +498,15 @@ function MineButton({
 
 // ── Entry view ────────────────────────────────────────────────────────────────
 
-function EntryView({ entry, onPlayWord }: { entry: DictEntry; onPlayWord?: () => void }) {
+function EntryView({
+  entry,
+  claudeApiKey,
+  onPlayWord,
+}: {
+  entry: DictEntry
+  claudeApiKey: string
+  onPlayWord?: () => void
+}) {
   const primaryReading = entry.readings[0] ?? ''
   const jlptLabel = entry.jlpt ? JLPT_LABEL[entry.jlpt] : null
 
@@ -573,7 +584,7 @@ function EntryView({ entry, onPlayWord }: { entry: DictEntry; onPlayWord?: () =>
           <div className="h-px mb-4" style={{ backgroundColor: '#2A2A2A' }} />
           <div className="space-y-2 mb-4">
             {entry.kanjiBreakdown.map((k) => (
-              <KanjiCard key={k.literal} kanji={k} />
+              <KanjiCard key={k.literal} kanji={k} claudeApiKey={claudeApiKey} />
             ))}
           </div>
         </>
@@ -582,11 +593,67 @@ function EntryView({ entry, onPlayWord }: { entry: DictEntry; onPlayWord?: () =>
   )
 }
 
-function KanjiCard({ kanji }: { kanji: KanjiBreakdown }) {
+function KanjiCard({ kanji, claudeApiKey }: { kanji: KanjiBreakdown; claudeApiKey: string }) {
   const meaning = kanji.rtk?.keyword ?? kanji.meanings[0] ?? ''
   const rtk = kanji.rtk
   const kunReadings = formatKanjiReadings(kanji.readings_kun)
   const onReadings = formatKanjiReadings(kanji.readings_on)
+  const canGenerateStory = !!rtk && rtk.storySource !== 'anki' && !!claudeApiKey
+  const [claudeStory, setClaudeStory] = useState<string | null>(() => {
+    return localStorage.getItem(CLAUDE_RTK_STORY_PREFIX + kanji.literal)
+  })
+  const [generatingStory, setGeneratingStory] = useState(false)
+  const [storyError, setStoryError] = useState(false)
+
+  useEffect(() => {
+    setClaudeStory(localStorage.getItem(CLAUDE_RTK_STORY_PREFIX + kanji.literal))
+    setStoryError(false)
+  }, [kanji.literal])
+
+  const displayedStory = claudeStory ?? rtk?.story
+  const storySourceLabel = rtk?.storySource === 'anki'
+    ? 'Your Anki story'
+    : claudeStory
+      ? 'Claude RTK story'
+      : 'Ondoku mnemonic'
+
+  const handleGenerateStory = async () => {
+    if (!rtk || !claudeApiKey || generatingStory) return
+
+    setGeneratingStory(true)
+    setStoryError(false)
+    try {
+      const response = await fetch(ANTHROPIC_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': claudeApiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 220,
+          messages: [{
+            role: 'user',
+            content: buildRtkStoryPrompt(kanji, rtk),
+          }],
+        }),
+      })
+
+      if (!response.ok) throw new Error(`Claude request failed: ${response.status}`)
+      const data = await response.json()
+      const story = parseClaudeStory(data.content?.[0]?.text ?? '')
+      if (!story) throw new Error('Claude returned no story')
+
+      localStorage.setItem(CLAUDE_RTK_STORY_PREFIX + kanji.literal, story)
+      setClaudeStory(story)
+    } catch {
+      setStoryError(true)
+    } finally {
+      setGeneratingStory(false)
+    }
+  }
 
   return (
     <div
@@ -641,14 +708,35 @@ function KanjiCard({ kanji }: { kanji: KanjiBreakdown }) {
             </div>
           ) : null}
 
-          {rtk?.story && (
+          {displayedStory && (
             <div className="mt-2">
               <p className="text-[14px] font-sans leading-relaxed break-words" style={{ color: '#F0EDE8' }}>
-                {rtk.story}
+                {displayedStory}
               </p>
-              <span className="text-[12px] font-sans" style={{ color: '#BDB7AE' }}>
-                {rtk.storySource === 'anki' ? 'Your Anki story' : 'Ondoku mnemonic'}
-              </span>
+              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                <span className="text-[12px] font-sans" style={{ color: '#BDB7AE' }}>
+                  {storySourceLabel}
+                </span>
+                {canGenerateStory && (
+                  <button
+                    onClick={handleGenerateStory}
+                    disabled={generatingStory}
+                    className="inline-flex items-center gap-1.5 rounded px-2 py-1 font-sans text-[12px] active:opacity-70 disabled:opacity-60"
+                    style={{ backgroundColor: '#303030', color: '#D9BE7C', border: '1px solid #444' }}
+                    aria-label={`Generate RTK story for ${kanji.literal}`}
+                  >
+                    {generatingStory
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Wand2 className="w-3 h-3" />}
+                    {claudeStory ? 'Regenerate' : 'Generate story'}
+                  </button>
+                )}
+                {storyError && (
+                  <span className="text-[12px] font-sans" style={{ color: '#ef4444' }}>
+                    Try again
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -724,10 +812,12 @@ function AiFallbackView({
   word,
   fallback,
   kanjiBreakdown,
+  claudeApiKey,
 }: {
   word: string
   fallback: AiFallback
   kanjiBreakdown: KanjiBreakdown[]
+  claudeApiKey: string
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -775,7 +865,7 @@ function AiFallbackView({
           <div className="h-px mb-4" style={{ backgroundColor: '#2A2A2A' }} />
           <div className="space-y-2 mb-4">
             {kanjiBreakdown.map((k) => (
-              <KanjiCard key={`ai-${k.literal}`} kanji={k} />
+              <KanjiCard key={`ai-${k.literal}`} kanji={k} claudeApiKey={claudeApiKey} />
             ))}
           </div>
         </div>
@@ -801,6 +891,49 @@ function parseAiFallback(raw: string): AiFallback | null {
     const meaning = raw.trim()
     if (!meaning) return null
     return { reading: '', wordType: '', meaning, context: '' }
+  }
+}
+
+function buildRtkStoryPrompt(
+  kanji: KanjiBreakdown,
+  rtk: NonNullable<KanjiBreakdown['rtk']>,
+): string {
+  const components = rtk.components.length
+    ? rtk.components.join(', ')
+    : 'No explicit primitives are available; use the visible written shape and stroke count.'
+  const kanjiMeanings = kanji.meanings.length ? kanji.meanings.join(', ') : 'none listed'
+
+  return `Create one original mnemonic story for a Japanese kanji using Remembering-the-Kanji style principles.
+
+Kanji: ${kanji.literal}
+RTK keyword: ${rtk.keyword}
+Frame: ${rtk.frame}
+Stroke count: ${rtk.strokeCount ?? 'unknown'}
+Primitive/component names: ${components}
+Dictionary meanings: ${kanjiMeanings}
+
+Standards:
+- Make it an original story. Do not copy or paraphrase any Heisig, Koohii, Anki, or public story.
+- The story is for recalling how to write the kanji from the RTK keyword.
+- Tie the RTK keyword to the primitive/component meanings through one vivid, concrete, memorable scene.
+- Use the primitive/component names as props or actors, preferably in the order they appear if that is inferable.
+- Do not teach readings, vocabulary, etymology, or historical origin.
+- Avoid generic wording like "the mark triggers the keyword" or "write each stroke"; make the image specific.
+- Keep it compact: 1-3 sentences, 35-75 words.
+- If components are missing, anchor the story in a distinctive visual feature of the kanji and the stroke count.
+
+Return only valid JSON: {"story":"..."}.`
+}
+
+function parseClaudeStory(raw: string): string | null {
+  const cleaned = raw.replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim()
+  try {
+    const parsed = JSON.parse(cleaned) as { story?: unknown }
+    const story = String(parsed.story ?? '').trim()
+    return story || null
+  } catch {
+    const story = cleaned.replace(/^["']|["']$/g, '').trim()
+    return story || null
   }
 }
 
