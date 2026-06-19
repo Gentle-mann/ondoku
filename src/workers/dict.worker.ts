@@ -139,6 +139,7 @@ async function loadRtkData(): Promise<Map<string, RtkKanjiInfo>> {
         components: row.c ?? [],
         story: row.story,
         storySource: row.storySource,
+        storyAlt: row.storyAlt,
         strokeCount: row.s ?? null,
         jlpt: row.jlpt ?? null,
       })
@@ -423,6 +424,7 @@ interface RtkRecord {
   c?: string[]
   story: string
   storySource: 'anki' | 'generated'
+  storyAlt?: string
   s?: number | null
   jlpt?: string | null
 }

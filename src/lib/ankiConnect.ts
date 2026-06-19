@@ -47,7 +47,10 @@ const MODEL_CSS = `
         .kanji-jlpt { font-size: 10px; color: #999; border: 1px solid #555;
                       padding: 1px 4px; border-radius: 3px; }
         .kanji-story { width: 100%; margin-left: 40px; font-size: 12px; color: #aaa;
-                       text-align: left; line-height: 1.45; }
+                       text-align: left; line-height: 1.45; margin-top: 4px; }
+        .kanji-story-src { display: inline-block; font-size: 10px; color: #C8A96E;
+                           font-family: sans-serif; text-transform: uppercase;
+                           letter-spacing: .04em; margin-right: 6px; opacity: .85; }
         .kanji-word { color: #C8A96E; font-size: 17px; }
         .kanji-reading { color: #ccc; }
         .kanji-chars { font-size: 13px; color: #aaa; }

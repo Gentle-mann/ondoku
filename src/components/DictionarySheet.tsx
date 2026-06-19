@@ -739,6 +739,18 @@ function KanjiCard({ kanji, claudeApiKey }: { kanji: KanjiBreakdown; claudeApiKe
               </div>
             </div>
           )}
+          {rtk?.storyAlt && rtk.storyAlt !== displayedStory && (
+            <div className="mt-2">
+              <p className="text-[14px] font-sans leading-relaxed break-words" style={{ color: '#F0EDE8' }}>
+                {rtk.storyAlt}
+              </p>
+              <div className="mt-1.5">
+                <span className="text-[12px] font-sans" style={{ color: '#BDB7AE' }}>
+                  RTK community story
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {!rtk && kanji.meanings.length > 0 && (
