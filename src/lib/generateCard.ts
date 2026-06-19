@@ -48,6 +48,19 @@ function kanjiStoriesHtml(rtk: { story?: string; storyAlt?: string }): string {
   return (mine ? block('Mine', mine) : '') + (alt ? block('RTK', alt) : '')
 }
 
+/** On'yomi / kun'yomi as separate labelled rows of individual chips (matching
+ *  the dictionary sheet), instead of a crammed "キョ / いる" line. */
+function kanjiReadingsHtml(on: string[], kun: string[]): string {
+  const row = (label: string, readings: string[]) => {
+    const cleaned = readings.filter((r) => r && r.trim())
+    if (cleaned.length === 0) return ''
+    const chips = cleaned.map((r) => `<span class="kanji-reading-chip">${escapeHtml(r)}</span>`).join('')
+    return `<div class="kanji-reading-row"><span class="kanji-reading-label">${label}</span><span class="kanji-reading-chips">${chips}</span></div>`
+  }
+  const html = row('音', on) + row('訓', kun)
+  return html ? `<div class="kanji-readings">${html}</div>` : ''
+}
+
 export function buildSentenceCard(entry: DictEntry, sentence: string): GeneratedCard {
   const reading = entry.readings[0] ?? ''
   const highlighted = sentence
@@ -105,15 +118,13 @@ ${entry.freqRank ? `<div class="freq">#${entry.freqRank.toLocaleString()}</div>`
 <div class="section">
   <div class="section-title">🧩 Kanji</div>
   ${entry.kanjiBreakdown.map(k => {
-    const onReading = k.readings_on[0] ?? ''
-    const kunReading = k.readings_kun[0]?.replace(/[.-].*/, '') ?? ''
     const meaning = k.meanings[0] ?? ''
     const rtk = k.rtk
     return `<div class="kanji-block">
       <span class="kanji-char">${k.literal}</span>
-      <span class="kanji-readings">${[onReading, kunReading].filter(Boolean).join(' / ')}</span>
       <span class="kanji-meaning">${rtk ? `RTK #${rtk.frame}: ${escapeHtml(rtk.keyword)}` : escapeHtml(meaning)}</span>
       ${k.jlpt ? `<span class="kanji-jlpt">N${k.jlpt}</span>` : ''}
+      ${kanjiReadingsHtml(k.readings_on, k.readings_kun)}
       ${rtk ? kanjiStoriesHtml(rtk) : ''}
     </div>`
   }).join('')}
