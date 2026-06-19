@@ -37,6 +37,17 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;')
 }
 
+/** The user's own RTK story plus the community one, each labelled only when
+ *  both are present (so a single story stays clean). */
+function kanjiStoriesHtml(rtk: { story?: string; storyAlt?: string }): string {
+  const mine = rtk.story?.trim()
+  const alt = rtk.storyAlt?.trim()
+  const both = !!mine && !!alt
+  const block = (label: string, text: string) =>
+    `<div class="kanji-story">${both ? `<span class="kanji-story-src">${label}</span> ` : ''}${escapeHtml(text)}</div>`
+  return (mine ? block('Mine', mine) : '') + (alt ? block('RTK', alt) : '')
+}
+
 export function buildSentenceCard(entry: DictEntry, sentence: string): GeneratedCard {
   const reading = entry.readings[0] ?? ''
   const highlighted = sentence
@@ -103,7 +114,7 @@ ${entry.freqRank ? `<div class="freq">#${entry.freqRank.toLocaleString()}</div>`
       <span class="kanji-readings">${[onReading, kunReading].filter(Boolean).join(' / ')}</span>
       <span class="kanji-meaning">${rtk ? `RTK #${rtk.frame}: ${escapeHtml(rtk.keyword)}` : escapeHtml(meaning)}</span>
       ${k.jlpt ? `<span class="kanji-jlpt">N${k.jlpt}</span>` : ''}
-      ${rtk ? `<div class="kanji-story">${escapeHtml(rtk.story)}</div>` : ''}
+      ${rtk ? kanjiStoriesHtml(rtk) : ''}
     </div>`
   }).join('')}
 </div>` : ''

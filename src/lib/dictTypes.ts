@@ -22,6 +22,8 @@ export interface RtkKanjiInfo {
   components: string[]
   story: string
   storySource: 'anki' | 'generated'
+  /** A second, community RTK mnemonic (Koohii-style), shown alongside `story`. */
+  storyAlt?: string
   strokeCount: number | null
   jlpt: string | null
 }
